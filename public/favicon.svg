@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="solarGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="50%" stop-color="#F97316" />
+      <stop offset="100%" stop-color="#EA580C" />
+    </linearGradient>
+    <linearGradient id="coreGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FEF08A" />
+      <stop offset="100%" stop-color="#F59E0B" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Base Rounded Squircle -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#solarGlow)" filter="url(#shadow)"/>
+
+  <!-- Rotating Solar Rays (8 primary rays) -->
+  <rect x="30" y="7" width="4" height="8" rx="2" fill="#FFFFFF" opacity="0.95"/>
+  <rect x="30" y="49" width="4" height="8" rx="2" fill="#FFFFFF" opacity="0.95"/>
+  <rect x="7" y="30" width="8" height="4" rx="2" fill="#FFFFFF" opacity="0.95"/>
+  <rect x="49" y="30" width="8" height="4" rx="2" fill="#FFFFFF" opacity="0.95"/>
+
+  <!-- Diagonal Rays -->
+  <rect x="30" y="7" width="4" height="7" rx="2" fill="#FFFFFF" opacity="0.9" transform="rotate(45 32 32)"/>
+  <rect x="30" y="50" width="4" height="7" rx="2" fill="#FFFFFF" opacity="0.9" transform="rotate(45 32 32)"/>
+  <rect x="7" y="30" width="7" height="4" rx="2" fill="#FFFFFF" opacity="0.9" transform="rotate(45 32 32)"/>
+  <rect x="50" y="30" width="7" height="4" rx="2" fill="#FFFFFF" opacity="0.9" transform="rotate(45 32 32)"/>
+
+  <!-- Outer Ring -->
+  <circle cx="32" cy="32" r="16" fill="none" stroke="#FFFFFF" stroke-width="2.5" opacity="0.9"/>
+
+  <!-- Solar Core -->
+  <circle cx="32" cy="32" r="12" fill="url(#coreGlow)"/>
+
+  <!-- Solar Grid Accent -->
+  <path d="M 24 32 L 40 32 M 32 24 L 32 40" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.85"/>
+  <circle cx="32" cy="32" r="4" fill="#FFFFFF"/>
+</svg>

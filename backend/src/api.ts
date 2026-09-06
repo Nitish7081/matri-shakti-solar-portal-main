@@ -225,65 +225,7 @@ export async function handleApiRequest(request: Request): Promise<Response> {
       if (city && city !== "ALL") query.city = { $regex: city, $options: "i" };
       if (company && company !== "ALL") query.companyName = company;
 
-      let installations = await InstallationModel.find(query).sort({ featured: -1, createdAt: -1 });
-
-      // Seed initial sample showcase installations if empty
-      if (installations.length === 0) {
-        const seedInstallations = [
-          {
-            title: "5 KW Residential Rooftop Installation",
-            customerName: "Smt. Shanti Devi",
-            location: "Paniyara, Maharajganj",
-            city: "Maharajganj",
-            companyName: "Tata Power Solar",
-            capacityKW: 5,
-            installationDate: "2026-01-15",
-            description: "High-efficiency bifacial Mono PERC panels with smart grid-tied inverter under PM Surya Ghar Yojana.",
-            images: ["/gallery-1.jpg"],
-            featured: true,
-            active: true,
-            technicianName: "Ramesh Sharma",
-            installationStatus: "COMPLETED",
-          },
-          {
-            title: "10 KW Commercial Building Solar Setup",
-            customerName: "Kisan Sewa Kendra",
-            location: "Civil Lines, Gorakhpur",
-            city: "Gorakhpur",
-            companyName: "Adani Solar",
-            capacityKW: 10,
-            installationDate: "2026-02-10",
-            description: "Custom heavy-duty elevated structure ensuring optimal sunlight capture and zero roof obstruction.",
-            images: ["/gallery-2.jpg"],
-            featured: true,
-            active: true,
-            technicianName: "Amit Kumar",
-            installationStatus: "COMPLETED",
-          },
-          {
-            title: "3 KW Domestic Rooftop System",
-            customerName: "Shri Rajesh Verma",
-            location: "Golghar, Gorakhpur",
-            city: "Gorakhpur",
-            companyName: "Waaree Solar",
-            capacityKW: 3,
-            installationDate: "2026-02-28",
-            description: "Compact 3 KW on-grid system powering household loads and supplying surplus units through net metering.",
-            images: ["/gallery-3.jpg"],
-            featured: false,
-            active: true,
-            technicianName: "Ramesh Sharma",
-            installationStatus: "COMPLETED",
-          },
-        ];
-        try {
-          await InstallationModel.insertMany(seedInstallations);
-          installations = await InstallationModel.find(query).sort({ featured: -1, createdAt: -1 });
-        } catch {
-          // ignore duplicate seed race
-        }
-      }
-
+      const installations = await InstallationModel.find(query).sort({ featured: -1, createdAt: -1 });
       return jsonResponse({ success: true, installations });
     }
 
@@ -2353,54 +2295,6 @@ export async function handleApiRequest(request: Request): Promise<Response> {
         ];
       }
 
-      // Automatically seed sample technicians if none exist
-      const count = await TechnicianModel.countDocuments();
-      if (count === 0) {
-        const seedTechs = [
-          {
-            technicianId: "MS-TECH-2026-000001",
-            name: "Ramesh Sharma",
-            phone: "9876543210",
-            email: "ramesh.solar@matrishakti.com",
-            address: "Gorakhpur Road, Maharajganj",
-            specialization: "Solar Rooftop Systems, Inverter & Net Metering",
-            active: true,
-            availability: "AVAILABLE",
-            assignedJobsCount: 4,
-            notes: "Lead installation technician with 6+ years experience.",
-          },
-          {
-            technicianId: "MS-TECH-2026-000002",
-            name: "Amit Kumar",
-            phone: "9876543211",
-            email: "amit.tech@matrishakti.com",
-            address: "Civil Lines, Gorakhpur",
-            specialization: "Commercial & Industrial Rooftop Solar",
-            active: true,
-            availability: "ON_JOB",
-            assignedJobsCount: 2,
-            notes: "Site survey & heavy structural framing specialist.",
-          },
-          {
-            technicianId: "MS-TECH-2026-000003",
-            name: "Suresh Yadav",
-            phone: "9876543212",
-            email: "suresh.y@matrishakti.com",
-            address: "Paniyara, Maharajganj",
-            specialization: "Maintenance, Wiring, Earthing & Repairs",
-            active: true,
-            availability: "AVAILABLE",
-            assignedJobsCount: 1,
-            notes: "Quick response technician for customer complaints and cleaning.",
-          },
-        ];
-        try {
-          await TechnicianModel.insertMany(seedTechs);
-        } catch {
-          // ignore duplicate race
-        }
-      }
-
       const technicians = await TechnicianModel.find(query).sort({ active: -1, name: 1 });
       return jsonResponse({ success: true, technicians });
     }
@@ -2717,6 +2611,21 @@ export async function handleApiRequest(request: Request): Promise<Response> {
           message: "Installation deleted successfully",
         });
       }
+    }
+
+    // POST /api/admin/clean-mock-data
+    if (path === "/api/admin/clean-mock-data" && method === "POST") {
+      await connectDB();
+      await InstallationModel.deleteMany({
+        customerName: { $in: ["Smt. Shanti Devi", "Kisan Sewa Kendra", "Shri Rajesh Verma"] }
+      });
+      await TechnicianModel.deleteMany({
+        technicianId: { $in: ["MS-TECH-2026-000001", "MS-TECH-2026-000002", "MS-TECH-2026-000003"] }
+      });
+      return jsonResponse({
+        success: true,
+        message: "Old mock data cleaned successfully! Starting fresh with real data.",
+      });
     }
 
     return errorResponse(`Endpoint ${method} ${path} not found`, 404);

@@ -248,20 +248,20 @@ export function AdminSidebar({
   });
 
   const sidebarContent = (
-    <div className="flex h-full flex-col justify-between overflow-hidden bg-slate-950 text-slate-100 select-none">
+    <div className="flex h-full flex-col justify-between overflow-hidden bg-white text-slate-800 select-none border-r border-slate-200">
       {/* Brand Header */}
-      <div className="flex items-center justify-between border-b border-slate-800/80 px-4 py-4.5">
+      <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4">
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-slate-950 shadow-md shadow-orange-500/20">
-            <Sun className="h-6 w-6 fill-slate-950 stroke-slate-950" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-md shadow-orange-500/20">
+            <Sun className="h-5 w-5" />
           </div>
           {!isCollapsed && (
             <div className="truncate">
-              <h2 className="text-xs font-black tracking-wider text-white uppercase font-display leading-tight">
-                MATRI SHAKTI ADMIN
+              <h2 className="text-sm font-black tracking-tight text-slate-800 leading-tight">
+                Matri Shakti
               </h2>
-              <p className="text-[10px] font-semibold text-orange-400 tracking-wide uppercase">
-                Solar CRM & Operations
+              <p className="text-[10px] font-semibold text-orange-500 tracking-wide uppercase">
+                Solar Admin Portal
               </p>
             </div>
           )}
@@ -270,7 +270,7 @@ export function AdminSidebar({
         {/* Mobile close button */}
         <button
           onClick={onCloseMobile}
-          className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden"
+          className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-800 lg:hidden"
           title="Close Sidebar"
         >
           <X className="h-5 w-5" />
@@ -279,7 +279,7 @@ export function AdminSidebar({
         {/* Desktop collapse button */}
         <button
           onClick={onToggleCollapse}
-          className="hidden rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white lg:block transition-colors"
+          className="hidden rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 lg:block transition-colors"
           title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
           {isCollapsed ? (
@@ -291,7 +291,7 @@ export function AdminSidebar({
       </div>
 
       {/* Navigation Links (Scrollable) */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
         {/* Quick Action: Manual Data Entry */}
         {onNewDataEntry && (
           <div className="pb-1">
@@ -301,7 +301,7 @@ export function AdminSidebar({
                   onNewDataEntry();
                   onCloseMobile();
                 }}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 py-2.5 px-3 text-xs font-bold text-slate-950 shadow-md shadow-orange-500/20 hover:from-orange-400 hover:to-amber-400 transition-all cursor-pointer"
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 py-2.5 px-3 text-xs font-bold text-white shadow-md shadow-orange-500/20 hover:from-orange-400 hover:to-amber-400 transition-all cursor-pointer"
               >
                 <Plus className="h-4 w-4 stroke-[3]" />
                 <span>➕ Manual Data Bharein</span>
@@ -313,7 +313,7 @@ export function AdminSidebar({
                   onCloseMobile();
                 }}
                 title="➕ Manual Solar Data Entry"
-                className="w-full flex items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 py-2 text-slate-950 shadow-md shadow-orange-500/20 hover:from-orange-400 hover:to-amber-400 transition-all cursor-pointer"
+                className="w-full flex items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 py-2 text-white shadow-md shadow-orange-500/20 hover:from-orange-400 hover:to-amber-400 transition-all cursor-pointer"
               >
                 <Plus className="h-5 w-5 stroke-[3]" />
               </button>
@@ -322,9 +322,9 @@ export function AdminSidebar({
         )}
 
         {sections.map((section) => (
-          <div key={section.title} className="space-y-1">
+          <div key={section.title} className="space-y-0.5">
             {!isCollapsed && (
-              <p className="px-3 pt-2 pb-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+              <p className="px-3 pt-3 pb-1 text-[10px] font-bold tracking-widest text-slate-400 uppercase">
                 {section.title}
               </p>
             )}
@@ -344,14 +344,14 @@ export function AdminSidebar({
                     isCollapsed ? "justify-center" : "justify-between"
                   } ${
                     isActive
-                      ? "bg-orange-500 text-slate-950 font-bold shadow-lg shadow-orange-500/25"
-                      : "text-slate-300 hover:bg-slate-900/80 hover:text-white"
+                      ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold shadow-md shadow-orange-200"
+                      : "text-slate-600 hover:bg-orange-50 hover:text-orange-700"
                   }`}
                 >
                   <div className="flex items-center gap-3 truncate">
                     <Icon
                       className={`h-4 w-4 shrink-0 transition-transform group-hover:scale-110 ${
-                        isActive ? "text-slate-950" : "text-slate-400 group-hover:text-orange-400"
+                        isActive ? "text-white" : "text-slate-400 group-hover:text-orange-500"
                       }`}
                     />
                     {!isCollapsed && (
@@ -361,10 +361,10 @@ export function AdminSidebar({
 
                   {!isCollapsed && item.badge !== undefined && (
                     <span
-                      className={`ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                      className={`ml-2 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
                         isActive
-                          ? "bg-slate-950/20 text-slate-950"
-                          : item.badgeColor || "bg-slate-800 text-slate-300"
+                          ? "bg-white/25 text-white"
+                          : "bg-slate-100 text-slate-600"
                       }`}
                     >
                       {item.badge}
@@ -373,7 +373,7 @@ export function AdminSidebar({
 
                   {/* Active Indicator bar */}
                   {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-slate-950" />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-r-full bg-white/50" />
                   )}
                 </button>
               );
@@ -383,21 +383,21 @@ export function AdminSidebar({
       </div>
 
       {/* User Info & Logout Footer */}
-      <div className="border-t border-slate-800/80 p-3 bg-slate-950/90">
+      <div className="border-t border-slate-100 p-3 bg-slate-50/80">
         {!isCollapsed ? (
-          <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-900/70 border border-slate-800/60">
+          <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white border border-slate-200 shadow-sm">
             <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-400 text-xs font-bold">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-orange-400 to-amber-500 text-white text-xs font-black">
                 MS
               </div>
               <div className="truncate">
                 <div className="flex items-center gap-1.5">
                   <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="truncate text-xs font-semibold text-white">
+                  <span className="truncate text-xs font-semibold text-slate-700">
                     {adminUser?.email || "Admin"}
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-400 capitalize">
+                <p className="text-[10px] text-slate-400">
                   Administrator
                 </p>
               </div>
@@ -405,7 +405,7 @@ export function AdminSidebar({
 
             <button
               onClick={onLogout}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
               title="Logout"
             >
               <LogOut className="h-4 w-4" />
@@ -414,14 +414,14 @@ export function AdminSidebar({
         ) : (
           <div className="flex flex-col items-center gap-2">
             <div
-              className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-400 text-xs font-bold"
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-400 to-amber-500 text-white text-xs font-black"
               title={adminUser?.email || "Admin"}
             >
               MS
             </div>
             <button
               onClick={onLogout}
-              className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
+              className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
               title="Logout"
             >
               <LogOut className="h-4 w-4" />
@@ -438,13 +438,13 @@ export function AdminSidebar({
       {isMobileOpen && (
         <div
           onClick={onCloseMobile}
-          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-xs transition-opacity lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity lg:hidden"
         />
       )}
 
       {/* Mobile Drawer (sliding) */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 transform bg-slate-950 shadow-2xl transition-transform duration-300 ease-in-out lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 transform bg-white shadow-2xl transition-transform duration-300 ease-in-out lg:hidden ${
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -453,7 +453,7 @@ export function AdminSidebar({
 
       {/* Desktop Sticky / Fixed Left Sidebar */}
       <aside
-        className={`sticky top-0 hidden h-screen shrink-0 border-r border-slate-800/80 bg-slate-950 transition-all duration-300 ease-in-out lg:flex lg:flex-col ${
+        className={`sticky top-0 hidden h-screen shrink-0 bg-white shadow-md transition-all duration-300 ease-in-out lg:flex lg:flex-col ${
           isCollapsed ? "w-20" : "w-68"
         }`}
       >

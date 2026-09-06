@@ -105,6 +105,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
@@ -119,14 +120,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "Organization",
-          name: "Matri Shakti Infrastructure",
+          name: "Matri-Shakti Infrastructure",
           description:
             "UPNEDA registered solar installation partner for PM Surya Ghar Muft Bijli Yojana.",
-          telephone: ["+91-9721029235", "+91-9305827390"],
+          telephone: ["+91-8948933657", "+91-9305827390"],
           email: "matrishaktiinfrastructure@gmail.com",
           address: {
             "@type": "PostalAddress",
-            streetAddress: "Rajiv Madhonagar, Paniyara",
+            streetAddress: "Anil Singh, Madhonagar, Paniyara",
             addressLocality: "Maharajganj",
             addressRegion: "Uttar Pradesh",
             addressCountry: "IN",

@@ -51,7 +51,7 @@ export const Route = createFileRoute("/contact")({
 const offices = [
   {
     title: "Head Office",
-    lines: ["Rajiv Madhonagar, Paniyara", "District Maharajganj", "Uttar Pradesh"],
+    lines: ["Anil Singh, Madhonagar, Paniyara", "District Maharajganj", "Uttar Pradesh"],
   },
   {
     title: "Branch Office — Gorakhpur",
@@ -102,7 +102,7 @@ function ContactPage() {
     const chosenCapacity = values.requiredCapacityKW || prefilledCapacity;
 
     // Construct the WhatsApp message from form values
-    const whatsappMessage = `Hello Matri Shakti Infrastructure,
+    const whatsappMessage = `Hello Matri-Shakti Infrastructure,
 
 I've submitted an inquiry on your website:
 Name: ${values.name}
@@ -115,7 +115,7 @@ ${values.message ? `Details: ${values.message}` : ""}
 Please contact me for free site survey and quotation.
 `;
 
-    const WHATSAPP_NUMBER = "919721029235";
+    const WHATSAPP_NUMBER = "918948933657";
     const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
       whatsappMessage
     )}`;
@@ -159,8 +159,8 @@ Please contact me for free site survey and quotation.
     <>
       <PageHero
         eyebrow="Get in Touch"
-        title="Contact Matri Shakti Infrastructure"
-        description="Talk to our solar experts, request a free site survey, or apply for PM Surya Ghar Yojana."
+        title="Contact Matri-Shakti Infrastructure"
+        description="Talk directly to our solar engineers, request a free site survey, or chat with us on WhatsApp at 8948933657."
       />
 
       <Section>
@@ -168,14 +168,14 @@ Please contact me for free site survey and quotation.
           {[
             {
               icon: Phone,
-              title: "Call Us",
+              title: "Call & WhatsApp",
               body: (
                 <>
-                  <a href="tel:+919721029235" className="block hover:text-primary">
-                    +91 97210 29235
+                  <a href="tel:+918948933657" className="block font-bold text-slate-900 hover:text-primary">
+                    +91 89489 33657 (Primary &amp; WhatsApp)
                   </a>
-                  <a href="tel:+919305827390" className="block hover:text-primary">
-                    +91 93058 27390
+                  <a href="tel:+919305827390" className="block text-slate-500 hover:text-primary mt-1">
+                    +91 93058 27390 (Support)
                   </a>
                 </>
               ),
@@ -186,7 +186,7 @@ Please contact me for free site survey and quotation.
               body: (
                 <a
                   href="mailto:matrishaktiinfrastructure@gmail.com"
-                  className="break-all hover:text-primary"
+                  className="break-all hover:text-primary font-medium"
                 >
                   matrishaktiinfrastructure@gmail.com
                 </a>

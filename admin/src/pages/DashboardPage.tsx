@@ -278,8 +278,8 @@ const tabTitleMap: Record<AdminTab, string> = {
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
 
-  // Active Tab state powered by AdminTab
-  const [activeTab, setActiveTab] = useState<AdminTab>("leads");
+  // Active Tab state powered by AdminTab (Executive Dashboard by default)
+  const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [projectMasterInitialSubTab, setProjectMasterInitialSubTab] = useState<any>("overview");
@@ -832,20 +832,65 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // ── Chart helpers ─────────────────────────────────────────────────────────
+  const totalLeads = stats?.totalLeads || 0;
+  const convertedLeads = stats?.convertedLeads || 0;
+  const newLeadsCount = stats?.newLeads || 0;
+  const contactedLeadsCount = stats?.contactedLeads || 0;
+  const inProgressLeadsCount = stats?.inProgressLeads || 0;
+
+  const donutData = [
+    { label: "New", value: newLeadsCount, color: "#f59e0b" },
+    { label: "Contacted", value: contactedLeadsCount, color: "#3b82f6" },
+    { label: "In Progress", value: inProgressLeadsCount, color: "#8b5cf6" },
+    { label: "Converted", value: convertedLeads, color: "#10b981" },
+  ];
+  const donutTotal = donutData.reduce((a, d) => a + d.value, 0) || 1;
+  let cumulativePct = 0;
+  const donutSegments = donutData.map((d) => {
+    const pct = d.value / donutTotal;
+    const start = cumulativePct;
+    cumulativePct += pct;
+    const r = 40;
+    const circ = 2 * Math.PI * r;
+    return { ...d, pct, start, dasharray: `${pct * circ} ${(1 - pct) * circ}`, offset: -start * circ };
+  });
+
+  const currentMonth = new Date().getMonth();
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const monthlyBars = months.map((m, i) => {
+    const monthLeads = leads.filter((l) => {
+      const d = l.createdAt ? new Date(l.createdAt) : null;
+      return d && d.getMonth() === i;
+    });
+    return {
+      month: m,
+      value: monthLeads.length,
+      isCurrentMonth: i === currentMonth,
+    };
+  });
+  const maxBarVal = Math.max(...monthlyBars.map(b => b.value), 1);
+
+  const totalPaymentsReceived = projects.reduce((s, p) => s + (p.payments?.amountPaid || 0), 0);
+  const totalPaymentsPending = projects.reduce((s, p) => s + (p.payments?.amountRemaining || 0), 0);
+  const totalRevenue = totalPaymentsReceived + totalPaymentsPending;
+  const collectionPct = totalRevenue > 0 ? Math.round((totalPaymentsReceived / totalRevenue) * 100) : 0;
+  // ───────────────────────────────────────────────────────────────────────────
+
   if (isAuthChecking) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-3 border-primary border-t-transparent" />
-          <p className="text-sm font-medium text-muted-foreground">Verifying admin session...</p>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
+        <div className="flex flex-col items-center gap-4 rounded-2xl bg-white p-10 shadow-xl">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
+          <p className="text-sm font-semibold text-slate-600">Verifying admin session...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-orange-500 selection:text-white">
-      {/* Modern Vertical Left Sidebar */}
+    <div className="flex min-h-screen bg-slate-50 text-slate-800 antialiased" style={{fontFamily:"'Inter','Outfit',system-ui,sans-serif"}}>
+      {/* Light Left Sidebar */}
       <AdminSidebar
         activeTab={activeTab}
         onSelectTab={handleSelectSidebarTab}
@@ -865,15 +910,15 @@ export default function AdminDashboardPage() {
       />
 
       {/* Main Right Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 bg-slate-950 overflow-x-hidden">
-        {/* Modern Dark Header */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md px-4 sm:px-6 lg:px-8 py-3.5 shadow-sm">
+      <div className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-slate-50 via-blue-50/20 to-orange-50/10 overflow-x-hidden">
+        {/* Modern Light Header */}
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/90 backdrop-blur-md px-4 sm:px-6 lg:px-8 py-3.5 shadow-sm">
           <div className="flex items-center gap-3">
             {/* Mobile hamburger */}
             <button
               type="button"
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 border border-slate-800 lg:hidden transition-colors"
+              className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 lg:hidden transition-colors"
               title="Open Menu"
             >
               <Menu className="h-5 w-5" />
@@ -882,18 +927,18 @@ export default function AdminDashboardPage() {
             {/* Breadcrumbs / Active Section Title */}
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-slate-400 hidden sm:inline">
+                <span className="text-xs font-semibold text-orange-500 hidden sm:inline">
                   Matri Shakti Solar
                 </span>
-                <span className="text-xs text-slate-600 hidden sm:inline">/</span>
-                <h1 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                <span className="text-xs text-slate-300 hidden sm:inline">/</span>
+                <h1 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
                   {tabTitleMap[activeTab] || activeTab}
                 </h1>
                 <Badge
                   variant="outline"
-                  className="text-[10px] border-orange-500/30 bg-orange-500/10 text-orange-400 font-semibold hidden md:inline-flex"
+                  className="text-[10px] border-emerald-500/30 bg-emerald-50 text-emerald-600 font-semibold hidden md:inline-flex"
                 >
-                  Live CRM
+                  🟢 Live
                 </Badge>
               </div>
             </div>
@@ -906,14 +951,14 @@ export default function AdminDashboardPage() {
                 setProjectToEdit(null);
                 setIsNewProjectDialogOpen(true);
               }}
-              className="gap-1.5 text-xs font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-slate-950 shadow-md shadow-orange-500/20 cursor-pointer"
+              className="gap-1.5 text-xs font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-500/20 cursor-pointer"
             >
               <Plus className="h-4 w-4 stroke-[2.5]" />
-              <span className="hidden sm:inline">➕ Manual Solar Data Entry</span>
-              <span className="sm:hidden">➕ Data Entry</span>
+              <span className="hidden sm:inline">➕ Manual Data Entry</span>
+              <span className="sm:hidden">➕ Entry</span>
             </Button>
 
-            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 border border-slate-800">
+            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               {adminUser?.email || "Admin"}
             </span>
@@ -943,7 +988,7 @@ export default function AdminDashboardPage() {
                 if (activeTab === "packages") fetchPackages();
                 toast.success("Data Refreshed");
               }}
-              className="gap-1.5 text-xs border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-200"
+              className="gap-1.5 text-xs border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Refresh</span>
@@ -953,11 +998,11 @@ export default function AdminDashboardPage() {
               asChild
               variant="outline"
               size="sm"
-              className="gap-1.5 text-xs hidden md:inline-flex border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-200"
+              className="gap-1.5 text-xs hidden md:inline-flex border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
             >
               <Link to="/solar-panels">
                 <ExternalLink className="h-3.5 w-3.5" />
-                View Catalog
+                View Site
               </Link>
             </Button>
 
@@ -965,7 +1010,7 @@ export default function AdminDashboardPage() {
               variant="destructive"
               size="sm"
               onClick={handleLogout}
-              className="gap-1.5 text-xs bg-rose-600 hover:bg-rose-700"
+              className="gap-1.5 text-xs bg-red-500 hover:bg-red-600"
             >
               <LogOut className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Logout</span>
@@ -981,100 +1026,131 @@ export default function AdminDashboardPage() {
         {/* ---------------------------------------------------- */}
         {activeTab === "leads" && (
           <div className="space-y-6">
-            {/* KPI Metric Cards */}
-            <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-              <Card className="border-border/60 bg-card shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                  <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Total Leads
-                  </CardTitle>
-                  <Users className="h-4 w-4 text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold font-display text-foreground">{stats ? stats.totalLeads : "--"}</div>
-                  <p className="text-[11px] text-muted-foreground mt-1">All customer inquiries</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                  <CardTitle className="text-xs font-semibold text-amber-600 uppercase tracking-wider">
-                    New Leads
-                  </CardTitle>
-                  <Sparkles className="h-4 w-4 text-amber-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold font-display text-amber-600">{stats ? stats.newLeads : "--"}</div>
-                  <p className="text-[11px] text-muted-foreground mt-1">Pending contact</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                  <CardTitle className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
-                    Contacted
-                  </CardTitle>
-                  <PhoneCall className="h-4 w-4 text-blue-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold font-display text-blue-600">{stats ? stats.contactedLeads : "--"}</div>
-                  <p className="text-[11px] text-muted-foreground mt-1">Called / survey booked</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                  <CardTitle className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
-                    Converted
-                  </CardTitle>
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold font-display text-emerald-600">{stats ? stats.convertedLeads : "--"}</div>
-                  <p className="text-[11px] text-muted-foreground mt-1">Installed solar</p>
-                </CardContent>
-              </Card>
-
-              <Card className="col-span-2 sm:col-span-1 border-border/60 bg-card shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                  <CardTitle className="text-xs font-semibold text-primary uppercase tracking-wider">
-                    Today&apos;s Leads
-                  </CardTitle>
-                  <Calendar className="h-4 w-4 text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold font-display text-primary">{stats ? stats.todayLeads : "--"}</div>
-                  <p className="text-[11px] text-muted-foreground mt-1">Received today</p>
-                </CardContent>
-              </Card>
+            {/* ── Colorful KPI Cards with progress bars ── */}
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 p-5 text-white shadow-lg">
+                <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-white/10" />
+                <Users className="h-6 w-6 mb-2 text-slate-300" />
+                <div className="text-3xl font-black">{stats ? stats.totalLeads : "--"}</div>
+                <div className="text-xs text-slate-300 mt-1 font-medium">Total Leads</div>
+                <div className="mt-2 h-1.5 w-full rounded-full bg-white/20"><div className="h-full rounded-full bg-white/70" style={{width:"100%"}} /></div>
+              </div>
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 p-5 text-white shadow-lg">
+                <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-white/10" />
+                <Sparkles className="h-6 w-6 mb-2 text-amber-100" />
+                <div className="text-3xl font-black">{stats ? stats.newLeads : "--"}</div>
+                <div className="text-xs text-amber-100 mt-1 font-medium">New Leads</div>
+                <div className="mt-2 h-1.5 w-full rounded-full bg-white/20"><div className="h-full rounded-full bg-white/70" style={{width: totalLeads > 0 ? `${Math.round((newLeadsCount/totalLeads)*100)}%` : "0%"}} /></div>
+                <div className="text-[10px] text-amber-100 mt-1">{totalLeads > 0 ? Math.round((newLeadsCount/totalLeads)*100) : 0}% of total</div>
+              </div>
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-5 text-white shadow-lg">
+                <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-white/10" />
+                <PhoneCall className="h-6 w-6 mb-2 text-blue-100" />
+                <div className="text-3xl font-black">{stats ? stats.contactedLeads : "--"}</div>
+                <div className="text-xs text-blue-100 mt-1 font-medium">Contacted</div>
+                <div className="mt-2 h-1.5 w-full rounded-full bg-white/20"><div className="h-full rounded-full bg-white/70" style={{width: totalLeads > 0 ? `${Math.round((contactedLeadsCount/totalLeads)*100)}%` : "0%"}} /></div>
+                <div className="text-[10px] text-blue-100 mt-1">{totalLeads > 0 ? Math.round((contactedLeadsCount/totalLeads)*100) : 0}%</div>
+              </div>
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 p-5 text-white shadow-lg">
+                <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-white/10" />
+                <CheckCircle2 className="h-6 w-6 mb-2 text-emerald-100" />
+                <div className="text-3xl font-black">{stats ? stats.convertedLeads : "--"}</div>
+                <div className="text-xs text-emerald-100 mt-1 font-medium">Converted</div>
+                <div className="mt-2 h-1.5 w-full rounded-full bg-white/20"><div className="h-full rounded-full bg-white/70" style={{width: totalLeads > 0 ? `${Math.round((convertedLeads/totalLeads)*100)}%` : "0%"}} /></div>
+                <div className="text-[10px] text-emerald-100 mt-1">{totalLeads > 0 ? Math.round((convertedLeads/totalLeads)*100) : 0}% rate</div>
+              </div>
+              <div className="col-span-2 sm:col-span-1 relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500 to-purple-700 p-5 text-white shadow-lg">
+                <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-white/10" />
+                <Calendar className="h-6 w-6 mb-2 text-violet-100" />
+                <div className="text-3xl font-black">{stats ? stats.todayLeads : "--"}</div>
+                <div className="text-xs text-violet-100 mt-1 font-medium">Today&apos;s Leads</div>
+                <div className="mt-2 h-1.5 w-full rounded-full bg-white/20"><div className="h-full rounded-full bg-white/70" style={{width:"100%"}} /></div>
+              </div>
             </div>
 
-            {/* Dealer Network & Referral Overview Cards */}
-            <div className="rounded-xl border border-border/70 bg-gradient-to-r from-card via-muted/20 to-card p-4 sm:p-5 shadow-sm space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/50 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <Briefcase className="h-4 w-4 text-primary" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                    Dealer & Referral Network Live Overview
-                  </h3>
-                  <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
-                    Channel Partners
-                  </Badge>
+            {/* ── Analytics Row: Donut + Monthly Bar + Financial ── */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {/* Donut Chart */}
+              <div className="rounded-2xl bg-white p-5 shadow-sm border border-slate-200">
+                <h3 className="text-sm font-bold text-slate-800 mb-4">Lead Pipeline Breakdown</h3>
+                <div className="flex items-center gap-4">
+                  <svg viewBox="0 0 100 100" className="h-32 w-32 shrink-0 -rotate-90">
+                    {donutSegments.map((seg, i) => (
+                      <circle key={i} cx="50" cy="50" r="40" fill="none" stroke={seg.color} strokeWidth="18"
+                        strokeDasharray={seg.dasharray} strokeDashoffset={seg.offset} className="transition-all duration-700" />
+                    ))}
+                    <circle cx="50" cy="50" r="28" fill="white" />
+                  </svg>
+                  <div className="flex flex-col gap-2 text-xs">
+                    {donutData.map((d) => (
+                      <div key={d.label} className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{background:d.color}} />
+                        <span className="text-slate-600">{d.label}</span>
+                        <span className="ml-auto font-bold text-slate-800">{d.value}</span>
+                        <span className="text-slate-400">({Math.round((d.value/donutTotal)*100)}%)</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setActiveTab("dealers")}
-                  className="h-7 text-xs gap-1 font-semibold text-primary hover:bg-primary/10"
-                >
-                  Manage Dealers ({stats?.totalDealers ?? 0})
-                  <ArrowRight className="h-3 w-3" />
-                </Button>
               </div>
 
+              {/* Monthly Activity Bar Chart */}
+              <div className="rounded-2xl bg-white p-5 shadow-sm border border-slate-200">
+                <h3 className="text-sm font-bold text-slate-800 mb-1">Monthly Activity</h3>
+                <p className="text-[11px] text-slate-400 mb-3">Lead volume — current month highlighted</p>
+                <div className="flex items-end gap-1 h-24">
+                  {monthlyBars.map((b) => (
+                    <div key={b.month} className="flex flex-col items-center gap-0.5 flex-1">
+                      <div
+                        className={`w-full rounded-t-sm transition-all duration-500 ${ b.isCurrentMonth ? "bg-gradient-to-t from-orange-500 to-amber-400" : "bg-slate-200 hover:bg-slate-300" }`}
+                        style={{height:`${Math.round((b.value/maxBarVal)*88)}px`, minHeight:b.value>0?"4px":"0"}}
+                        title={`${b.month}: ${b.value}`}
+                      />
+                      <span className={`text-[8px] font-semibold ${b.isCurrentMonth?"text-orange-500":"text-slate-400"}`}>{b.month.charAt(0)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Financial Collection Overview */}
+              <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 p-5 shadow-sm border border-emerald-200">
+                <h3 className="text-sm font-bold text-slate-800 mb-1">💰 Monthly Collection</h3>
+                <p className="text-[11px] text-slate-500 mb-3">Customer payment tracking</p>
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between text-xs mb-1"><span className="text-slate-600 font-medium">Received</span><span className="font-bold text-emerald-700">₹{totalPaymentsReceived.toLocaleString("en-IN")}</span></div>
+                    <div className="h-2 w-full rounded-full bg-white/70"><div className="h-full rounded-full bg-emerald-500 transition-all duration-700" style={{width:`${collectionPct}%`}} /></div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs mb-1"><span className="text-slate-600 font-medium">Pending</span><span className="font-bold text-amber-600">₹{totalPaymentsPending.toLocaleString("en-IN")}</span></div>
+                    <div className="h-2 w-full rounded-full bg-white/70"><div className="h-full rounded-full bg-amber-400 transition-all duration-700" style={{width:`${100-collectionPct}%`}} /></div>
+                  </div>
+                  <div className="rounded-xl bg-white p-3 shadow-sm">
+                    <div className="flex justify-between text-xs"><span className="text-slate-500">Collection Rate</span><span className="font-black text-emerald-700 text-base">{collectionPct}%</span></div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">Total Value: <span className="font-bold text-slate-700">₹{totalRevenue.toLocaleString("en-IN")}</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* ── Dealer Network Light Cards ── */}
+            <div className="rounded-2xl bg-white p-5 shadow-sm border border-slate-200">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                    <Briefcase className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800">Dealer & Referral Network</h3>
+                    <p className="text-[11px] text-slate-400">Live channel partner overview</p>
+                  </div>
+                </div>
+                <button onClick={() => setActiveTab("dealers")} className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition-colors">
+                  Manage Dealers ({stats?.totalDealers ?? 0}) <ArrowRight className="h-3 w-3" />
+                </button>
+              </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                <div className="rounded-lg border border-border/60 bg-card p-3 shadow-xs">
-                  <span className="text-[10px] font-semibold text-muted-foreground uppercase">Total Dealers</span>
+                <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                  <span className="text-[10px] font-semibold text-slate-500 uppercase">Total Dealers</span>
                   <div className="text-xl font-bold font-mono text-foreground mt-0.5">{stats?.totalDealers ?? 0}</div>
                   <span className="text-[10px] text-muted-foreground">Registered network</span>
                 </div>
@@ -2987,15 +3063,15 @@ export default function AdminDashboardPage() {
           if (!open) setPreviewHouseProject(null);
         }}
       >
-        <DialogContent className="max-w-4xl p-0 overflow-hidden border-slate-800 bg-slate-950 text-white">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden border-slate-200 bg-white text-slate-900 rounded-3xl shadow-2xl">
           {previewHouseProject && (
-            <div className="p-4 space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div className="p-5 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div>
-                  <h3 className="font-bold text-base text-amber-400 flex items-center gap-2">
+                  <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
                     🏠 Solar Rooftop Architecture & Status
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-500">
                     Project ID: {previewHouseProject.projectId} — {previewHouseProject.customerName}
                   </p>
                 </div>

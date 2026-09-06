@@ -24,8 +24,10 @@ import {
 import { FaWhatsapp } from "react-icons/fa";
 
 interface ApplyModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  open?: boolean;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onClose?: () => void;
   defaultCompany?: string;
   defaultCapacity?: number;
   defaultProduct?: string;
@@ -33,11 +35,14 @@ interface ApplyModalProps {
 
 export function ApplyModal({
   open,
+  isOpen,
   onOpenChange,
+  onClose,
   defaultCompany = "",
   defaultCapacity = 5,
   defaultProduct = "",
 }: ApplyModalProps) {
+  const actualOpen = Boolean(open ?? isOpen);
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -69,7 +74,7 @@ export function ApplyModal({
 
   // Load companies and active dealers
   useEffect(() => {
-    if (open) {
+    if (actualOpen) {
       fetch(`${baseUrl}/api/companies`)
         .then((res) => res.json())
         .then((data) => {
@@ -94,7 +99,7 @@ export function ApplyModal({
         })
         .catch(() => {});
     }
-  }, [open, baseUrl, defaultCompany]);
+  }, [actualOpen, baseUrl, defaultCompany]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -152,11 +157,17 @@ export function ApplyModal({
 
   const handleClose = () => {
     setSubmittedEnquiryId(null);
-    onOpenChange(false);
+    if (onOpenChange) onOpenChange(false);
+    if (onClose) onClose();
+  };
+
+  const handleOpenChange = (val: boolean) => {
+    if (!val) handleClose();
+    else if (onOpenChange) onOpenChange(true);
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={actualOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 bg-white border border-slate-200 shadow-2xl rounded-2xl">
         {submittedEnquiryId ? (
           <div className="py-8 text-center space-y-6">
@@ -197,13 +208,13 @@ export function ApplyModal({
                 className="gap-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50"
                 onClick={() => {
                   window.open(
-                    `https://api.whatsapp.com/send/?phone=919721029235&text=Hello+Matri+Shakti%2C+I+submitted+solar+application+${submittedEnquiryId}+for+${formData.requiredCapacityKW}KW+solar+system.+Please+share+next+steps.`,
+                    `https://api.whatsapp.com/send/?phone=918948933657&text=Hello+Matri-Shakti+Infrastructure%2C+I+submitted+solar+application+${submittedEnquiryId}+for+${formData.requiredCapacityKW}KW+solar+system.+Please+share+next+steps.`,
                     "_blank"
                   );
                 }}
               >
                 <FaWhatsapp className="h-4 w-4 text-emerald-600" />
-                Chat on WhatsApp
+                Chat on WhatsApp (8948933657)
               </Button>
               <Button className="bg-primary text-white hover:bg-primary/90" onClick={handleClose}>
                 Done & Close
