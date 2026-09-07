@@ -1129,13 +1129,13 @@ export default function AdminDashboardPage() {
               <span className="hidden sm:inline">Refresh</span>
             </Button>
 
-            {/* View Website (User requirement: view website pr click kare to website pr chale jaye) */}
+            {/* View Website (User requirement: opens hosted website https://matri-shakti-solar-portal-main.vercel.app/) */}
             <a
-              href="http://localhost:8080/"
+              href="https://matri-shakti-solar-portal-main.vercel.app/"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs rounded-md border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 font-semibold text-slate-700 shadow-xs transition-colors"
-              title="Open Customer Live Solar Portal"
+              title="Open Live Hosted Website"
             >
               <ExternalLink className="h-3.5 w-3.5 text-orange-500" />
               <span className="hidden sm:inline">View Website</span>

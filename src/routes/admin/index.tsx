@@ -848,7 +848,7 @@ function AdminDashboardPage() {
                 <RefreshCw className="h-3.5 w-3.5" /> Refresh
               </Button>
               <Button asChild variant="outline" size="sm" className="gap-1.5 text-xs hidden md:inline-flex border-slate-200">
-                <Link to="/solar-panels"><ExternalLink className="h-3.5 w-3.5" /> View Site</Link>
+                <a href="https://matri-shakti-solar-portal-main.vercel.app/" target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3.5 w-3.5" /> View Website</a>
               </Button>
               <Button size="sm" onClick={handleLogout} className="gap-1.5 text-xs bg-red-500 hover:bg-red-600 text-white">
                 <LogOut className="h-3.5 w-3.5" /> Logout
