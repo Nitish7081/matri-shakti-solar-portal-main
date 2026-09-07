@@ -25,6 +25,7 @@ import {
   X,
   Sun,
   Plus,
+  ExternalLink,
 } from "lucide-react";
 import { IDashboardStats } from "../../pages/DashboardPage";
 
@@ -380,6 +381,22 @@ export function AdminSidebar({
             })}
           </div>
         ))}
+      </div>
+
+      {/* View Website Link (User requirement: view website pr click karne pr website pr chale jaye) */}
+      <div className="px-3 pt-2 pb-1 border-t border-slate-100">
+        <a
+          href="http://localhost:8080/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-orange-600 bg-orange-50/80 hover:bg-orange-100/90 border border-orange-200/60 transition-colors shadow-2xs ${
+            isCollapsed ? "justify-center px-0" : ""
+          }`}
+          title="Open live customer solar portal"
+        >
+          <ExternalLink className="h-4 w-4 shrink-0 text-orange-500" />
+          {!isCollapsed && <span>🌐 View Website</span>}
+        </a>
       </div>
 
       {/* User Info & Logout Footer */}

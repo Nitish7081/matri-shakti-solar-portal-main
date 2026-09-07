@@ -1,5 +1,5 @@
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -275,6 +275,65 @@ const tabTitleMap: Record<AdminTab, string> = {
   settings: "Admin Settings & Infrastructure",
 };
 
+interface SafeBoundaryProps {
+  children: React.ReactNode;
+  fallbackTitle?: string;
+  onReset?: () => void;
+}
+
+interface SafeBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class SafeBoundary extends React.Component<SafeBoundaryProps, SafeBoundaryState> {
+  constructor(props: SafeBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error("Master File caught error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 rounded-3xl border border-rose-200 bg-rose-50 text-center space-y-4 my-6 shadow-sm">
+          <div className="h-12 w-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+            <AlertTriangle className="h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">
+              {this.props.fallbackTitle || "Master File View Restored"}
+            </h3>
+            <p className="text-xs text-slate-600 mt-1 max-w-md mx-auto">
+              Master File render issue handled safely without crashing. Data is intact.
+            </p>
+          </div>
+          <div className="flex justify-center gap-3 pt-2">
+            <Button
+              size="sm"
+              onClick={() => {
+                this.setState({ hasError: false });
+                if (this.props.onReset) this.props.onReset();
+              }}
+              className="text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white"
+            >
+              ⬅️ Back to Projects
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
 
@@ -285,6 +344,9 @@ export default function AdminDashboardPage() {
   const [projectMasterInitialSubTab, setProjectMasterInitialSubTab] = useState<any>("overview");
 
   const handleSelectSidebarTab = (tab: AdminTab) => {
+    try {
+      window.history.pushState({ tab }, "");
+    } catch {}
     if (tab === "payments") {
       setProjectMasterInitialSubTab("payments");
     } else if (tab === "loans") {
@@ -306,6 +368,9 @@ export default function AdminDashboardPage() {
   };
 
   const handleOpenProjectWithSubTab = (proj: IProjectData, subTab?: string) => {
+    try {
+      window.history.pushState({ project: proj.id || proj.projectId, subTab }, "");
+    } catch {}
     setSelectedProject(proj);
     if (subTab) {
       setProjectMasterInitialSubTab(subTab);
@@ -332,6 +397,10 @@ export default function AdminDashboardPage() {
   const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState<IProjectData | null>(null);
   const [previewHouseProject, setPreviewHouseProject] = useState<IProjectData | null>(null);
+
+  // Project Delete State
+  const [projectToDelete, setProjectToDelete] = useState<IProjectData | null>(null);
+  const [isDeleteProjectModalOpen, setIsDeleteProjectModalOpen] = useState(false);
 
   // Leads State
   const [stats, setStats] = useState<IDashboardStats | null>(null);
@@ -612,6 +681,19 @@ export default function AdminDashboardPage() {
     checkAuth();
   }, [checkAuth]);
 
+  // Handle 1-step back navigation for browser back button
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (selectedProject) {
+        setSelectedProject(null);
+      } else if (activeTab !== "dashboard") {
+        setActiveTab("dashboard");
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [selectedProject, activeTab]);
+
   useEffect(() => {
     if (!isAuthChecking) {
       fetchStats();
@@ -701,6 +783,34 @@ export default function AdminDashboardPage() {
       setIsDeleteModalOpen(false);
       setLeadToDelete(null);
       fetchLeads(pagination.page);
+      fetchStats();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Delete Project (User requirement: delete button in customer projects)
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/projects/${projectToDelete.id || projectToDelete.projectId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}` },
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to delete project");
+
+      toast.success("Customer project deleted successfully");
+      setIsDeleteProjectModalOpen(false);
+      setProjectToDelete(null);
+      if (selectedProject?.id === projectToDelete.id || selectedProject?.projectId === projectToDelete.projectId) {
+        setSelectedProject(null);
+      }
+      fetchProjects(projectsPagination.page);
       fetchStats();
     } catch (err) {
       toast.error((err as Error).message);
@@ -945,6 +1055,31 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Step-Back Navigation Button (User requirement: back jaane pr ek step peeche jaye) */}
+            {selectedProject ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setSelectedProject(null)}
+                className="gap-1.5 text-xs font-bold border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 cursor-pointer shadow-xs"
+                title="Go back to Customer Projects table"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span>⬅️ Back (Peeche)</span>
+              </Button>
+            ) : activeTab !== "dashboard" ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setActiveTab("dashboard")}
+                className="gap-1.5 text-xs font-semibold border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 cursor-pointer"
+                title="Go back to Dashboard Overview"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+                <span>⬅️ Back</span>
+              </Button>
+            ) : null}
+
             <Button
               size="sm"
               onClick={() => {
@@ -994,17 +1129,18 @@ export default function AdminDashboardPage() {
               <span className="hidden sm:inline">Refresh</span>
             </Button>
 
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs hidden md:inline-flex border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+            {/* View Website (User requirement: view website pr click kare to website pr chale jaye) */}
+            <a
+              href="http://localhost:8080/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs rounded-md border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 font-semibold text-slate-700 shadow-xs transition-colors"
+              title="Open Customer Live Solar Portal"
             >
-              <Link to="/solar-panels">
-                <ExternalLink className="h-3.5 w-3.5" />
-                View Site
-              </Link>
-            </Button>
+              <ExternalLink className="h-3.5 w-3.5 text-orange-500" />
+              <span className="hidden sm:inline">View Website</span>
+              <span className="sm:hidden">Website</span>
+            </a>
 
             <Button
               variant="destructive"
@@ -1331,6 +1467,7 @@ export default function AdminDashboardPage() {
                           <th className="px-4 py-3.5">Req. Capacity</th>
                           <th className="px-4 py-3.5">Interested Brand</th>
                           <th className="px-4 py-3.5">Status</th>
+                          <th className="px-4 py-3.5">Solar Interested?</th>
                           <th className="px-4 py-3.5">Date</th>
                           <th className="px-4 py-3.5 text-right">Actions</th>
                         </tr>
@@ -1342,6 +1479,11 @@ export default function AdminDashboardPage() {
                           const whatsappUrl = `https://wa.me/91${cleanPhone.slice(-10)}?text=${encodeURIComponent(
                             `Namaste ${lead.name} ji, regarding your ${lead.requiredCapacityKW ? `${lead.requiredCapacityKW} KW ` : ""}solar inquiry with Matri Shakti Infrastructure.`
                           )}`;
+
+                          const isHighIntent = ["CONVERTED", "INSTALLED", "APPROVED", "INSTALLATION_SCHEDULED"].includes(lead.status);
+                          const isInterested = ["QUOTATION_SENT", "SITE_SURVEY", "TECHNICAL_ASSIGNED", "IN_PROGRESS"].includes(lead.status);
+                          const isPotential = ["FORM_ACCEPTED", "RECEIVED", "CONTACTED"].includes(lead.status);
+                          const isNotInterested = ["REJECTED", "CLOSED"].includes(lead.status);
 
                           return (
                             <tr key={lead.id} className="hover:bg-muted/30 transition-colors">
@@ -1409,12 +1551,37 @@ export default function AdminDashboardPage() {
                                 </span>
                               </td>
 
+                              {/* Solar Interested Column (User Requirement) */}
+                              <td className="px-4 py-3.5">
+                                {isHighIntent ? (
+                                  <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-bold shadow-2xs">
+                                    🔥 Ready / Lagwana Hai
+                                  </Badge>
+                                ) : isInterested ? (
+                                  <Badge className="bg-blue-100 text-blue-800 border-blue-300 text-[10px] font-bold">
+                                    ⭐ Interested (Ruchi Hai)
+                                  </Badge>
+                                ) : isPotential ? (
+                                  <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] font-semibold">
+                                    👍 Potential (Vichar)
+                                  </Badge>
+                                ) : isNotInterested ? (
+                                  <Badge className="bg-slate-100 text-slate-600 border-slate-200 text-[10px] font-medium">
+                                    ❌ Not Interested
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-orange-100 text-orange-800 border-orange-200 text-[10px] font-semibold">
+                                    ⏳ Inquiring
+                                  </Badge>
+                                )}
+                              </td>
+
                               <td className="px-4 py-3.5 text-muted-foreground text-[11px] whitespace-nowrap">
                                 {formatDate(lead.createdAt)}
                               </td>
 
                               <td className="px-4 py-3.5 text-right">
-                                <div className="flex items-center justify-end gap-1.5">
+                                <div className="flex items-center justify-end gap-1.5 flex-wrap">
                                   {lead.convertedToProjectId ? (
                                     <Button
                                       variant="outline"
@@ -1443,6 +1610,7 @@ export default function AdminDashboardPage() {
                                       setIsViewModalOpen(true);
                                     }}
                                     className="h-7 w-7 p-0"
+                                    title="View Lead Details"
                                   >
                                     <Eye className="h-3.5 w-3.5" />
                                   </Button>
@@ -1451,19 +1619,22 @@ export default function AdminDashboardPage() {
                                     size="sm"
                                     onClick={() => openEditModal(lead)}
                                     className="h-7 w-7 p-0 text-primary"
+                                    title="Edit Lead Status"
                                   >
                                     <Edit className="h-3.5 w-3.5" />
                                   </Button>
+                                  {/* Delete button (User requirement: delete button press karne pr ho delete ho jaye) */}
                                   <Button
-                                    variant="ghost"
+                                    variant="outline"
                                     size="sm"
                                     onClick={() => {
                                       setLeadToDelete(lead);
                                       setIsDeleteModalOpen(true);
                                     }}
-                                    className="h-7 w-7 p-0 text-destructive"
+                                    className="h-7 px-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 text-[11px] font-semibold gap-1"
+                                    title="Delete Lead"
                                   >
-                                    <Trash2 className="h-3.5 w-3.5" />
+                                    <Trash2 className="h-3 w-3" /> Delete
                                   </Button>
                                 </div>
                               </td>
@@ -1509,20 +1680,22 @@ export default function AdminDashboardPage() {
         {activeTab === "projects" && (
           <div className="mt-6 space-y-6">
             {selectedProject ? (
-              <ProjectMasterFile
-                project={selectedProject}
-                initialSubTab={projectMasterInitialSubTab}
-                onClose={() => setSelectedProject(null)}
-                onProjectUpdated={(updated) => {
-                  setSelectedProject(updated);
-                  fetchProjects(projectsPagination.page);
-                  fetchStats();
-                }}
-                onEditProject={(proj) => {
-                  setProjectToEdit(proj);
-                  setIsNewProjectDialogOpen(true);
-                }}
-              />
+              <SafeBoundary fallbackTitle="Project Master File" onReset={() => setSelectedProject(null)}>
+                <ProjectMasterFile
+                  project={selectedProject}
+                  initialSubTab={projectMasterInitialSubTab}
+                  onClose={() => setSelectedProject(null)}
+                  onProjectUpdated={(updated) => {
+                    setSelectedProject(updated);
+                    fetchProjects(projectsPagination.page);
+                    fetchStats();
+                  }}
+                  onEditProject={(proj) => {
+                    setProjectToEdit(proj);
+                    setIsNewProjectDialogOpen(true);
+                  }}
+                />
+              </SafeBoundary>
             ) : (
               <>
                 {/* Top Metrics Cards for Projects */}
@@ -1897,6 +2070,19 @@ export default function AdminDashboardPage() {
                                     title="Edit All Details of this Project"
                                   >
                                     <Edit className="h-3 w-3" /> Edit Data
+                                  </Button>
+                                  {/* Delete button (User requirement: customere project me ek column bano delete . edit ke bagal me) */}
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setProjectToDelete(proj);
+                                      setIsDeleteProjectModalOpen(true);
+                                    }}
+                                    className="border-red-500/40 text-red-500 hover:bg-red-500/10 text-[11px] gap-1 h-7 font-bold"
+                                    title="Delete this Project"
+                                  >
+                                    <Trash2 className="h-3 w-3" /> Delete
                                   </Button>
                                   <Button
                                     size="sm"
@@ -3090,6 +3276,41 @@ export default function AdminDashboardPage() {
               <RooftopSolarHouseView project={previewHouseProject} />
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* 🗑️ Modal: Delete Customer Project Confirmation Dialog */}
+      <Dialog open={isDeleteProjectModalOpen} onOpenChange={setIsDeleteProjectModalOpen}>
+        <DialogContent className="sm:max-w-[420px] rounded-3xl bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-red-600 flex items-center gap-2">
+              <Trash2 className="h-4 w-4" />
+              Delete Customer Project?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Kya aap sach me customer <span className="font-bold text-slate-800">{projectToDelete?.customerName}</span> (Project ID: <span className="font-mono text-slate-800">{projectToDelete?.projectId}</span>) ka project permanent delete karna chahte hain?
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2 pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDeleteProjectModalOpen(false)}
+              disabled={isSaving}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleDeleteProject}
+              disabled={isSaving}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs"
+            >
+              {isSaving ? "Deleting..." : "Delete Project"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

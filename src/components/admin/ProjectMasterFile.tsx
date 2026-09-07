@@ -36,6 +36,11 @@ import {
   Sparkles,
   Cpu,
   Briefcase,
+  Edit,
+  Trash2,
+  Upload,
+  Download,
+  ExternalLink,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 

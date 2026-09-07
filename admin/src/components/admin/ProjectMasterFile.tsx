@@ -37,6 +37,11 @@ import {
   Sparkles,
   Cpu,
   Briefcase,
+  Edit,
+  Trash2,
+  Upload,
+  Download,
+  ExternalLink,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 
@@ -340,6 +345,15 @@ export function ProjectMasterFile({
   // Modal dialog states
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
+  const [isEditDocModalOpen, setIsEditDocModalOpen] = useState(false);
+  const [editingDoc, setEditingDoc] = useState<any>(null);
+  const [isMeterFileModalOpen, setIsMeterFileModalOpen] = useState(false);
+  const [newMeterFile, setNewMeterFile] = useState({
+    name: "",
+    fileUrl: "",
+    docType: "Meter Documents",
+    notes: "",
+  });
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
 
@@ -432,6 +446,151 @@ export function ProjectMasterFile({
       toast.success(`Project status changed to ${newStatus}`);
     } catch (err: any) {
       toast.error(err.message || "Status update error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Delete Payment Transaction
+  const handleDeletePayment = async (txnId: string) => {
+    if (!window.confirm("Kya aap sach me is payment transaction ko delete karna chahte hain? Isse customer ka balance recalculate hoga.")) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/projects/${project.projectId}/payments/${txnId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to delete payment");
+      setProject(data.project);
+      onProjectUpdated(data.project);
+      toast.success("Payment transaction deleted successfully");
+    } catch (err: any) {
+      toast.error(err.message || "Error deleting payment");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Update Overall Payment Status (Payment Done, Pending, Not Given, Other)
+  const handleUpdatePaymentStatus = async (status: string) => {
+    setIsSaving(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/projects/${project.projectId}/payments`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ paymentStatus: status }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to update payment status");
+      setProject(data.project);
+      onProjectUpdated(data.project);
+      toast.success(`Payment status updated to: ${status}`);
+    } catch (err: any) {
+      toast.error(err.message || "Error updating payment status");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Delete Document
+  const handleDeleteDocument = async (docId: string) => {
+    if (!window.confirm("Kya aap is document ko delete karna chahte hain?")) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/projects/${project.projectId}/documents/${docId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to delete document");
+      setProject(data.project);
+      onProjectUpdated(data.project);
+      toast.success("Document deleted successfully");
+    } catch (err: any) {
+      toast.error(err.message || "Error deleting document");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Edit Document
+  const handleEditDocumentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDoc) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/projects/${project.projectId}/documents/${editingDoc.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(editingDoc),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to update document");
+      setProject(data.project);
+      onProjectUpdated(data.project);
+      setIsEditDocModalOpen(false);
+      setEditingDoc(null);
+      toast.success("Document updated successfully");
+    } catch (err: any) {
+      toast.error(err.message || "Error updating document");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Upload Meter File / Photo
+  const handleUploadMeterFile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMeterFile.name.trim() || !newMeterFile.fileUrl) {
+      return toast.error("Please provide file title and select a file");
+    }
+    setIsSaving(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/projects/${project.projectId}/meter-files`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newMeterFile),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to upload meter file");
+      setProject(data.project);
+      onProjectUpdated(data.project);
+      setIsMeterFileModalOpen(false);
+      setNewMeterFile({ name: "", fileUrl: "", docType: "Meter Documents", notes: "" });
+      toast.success("Meter file / photo attached successfully");
+    } catch (err: any) {
+      toast.error(err.message || "Error attaching meter file");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Delete Meter File
+  const handleDeleteMeterFile = async (fileId: string) => {
+    if (!window.confirm("Kya aap is meter file ko delete karna chahte hain?")) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/projects/${project.projectId}/meter-files/${fileId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to delete meter file");
+      setProject(data.project);
+      onProjectUpdated(data.project);
+      toast.success("Meter file deleted successfully");
+    } catch (err: any) {
+      toast.error(err.message || "Error deleting meter file");
     } finally {
       setIsSaving(false);
     }
@@ -1493,6 +1652,96 @@ export function ProjectMasterFile({
                 </div>
               </CardContent>
             </Card>
+
+            {/* Meter Photos & Inspection Documents Card */}
+            <Card className="border-slate-200 shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <div>
+                  <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Cpu className="h-4 w-4 text-sky-600" /> Bi-Directional Net-Meter Documents & Inspection Photos
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Upload net-meter photo, DISCOM testing lab report, seal verification document, and clearance certificates.
+                  </CardDescription>
+                </div>
+                <Button size="sm" className="bg-sky-600 hover:bg-sky-700 text-white gap-1 text-xs" onClick={() => setIsMeterFileModalOpen(true)}>
+                  <Plus className="h-3.5 w-3.5" /> ➕ Upload Meter File / Photo
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const meterDocs = (project.documents || []).filter(
+                    (d) => d.docType?.includes("Meter") || d.name?.toLowerCase().includes("meter")
+                  );
+                  const hasPhoto = Boolean(project.meterDetails?.meterPhoto);
+
+                  if (meterDocs.length === 0 && !hasPhoto) {
+                    return (
+                      <div className="py-8 text-center text-slate-400 text-xs border border-dashed border-slate-200 rounded-xl">
+                        Abhi tak koi meter photo ya testing report upload nahi hui hai. Upar "Upload Meter File" button dabayein.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                      {hasPhoto && (
+                        <div className="p-3.5 rounded-xl border border-sky-200 bg-sky-50/50 shadow-xs space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Badge className="bg-sky-600 text-white text-[10px]">Net-Meter Photo</Badge>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeleteMeterFile("meterPhoto")}
+                              disabled={isSaving}
+                              className="h-6 w-6 p-0 text-red-500 hover:bg-red-50"
+                              title="Delete meter photo"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                          <div className="h-28 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center">
+                            <img src={project.meterDetails?.meterPhoto} alt="Meter" className="h-full w-full object-cover" />
+                          </div>
+                          <div className="flex items-center justify-between pt-1 text-[11px]">
+                            <span className="font-mono text-slate-600 font-bold">{project.meterDetails?.meterNumber || "Smart Meter"}</span>
+                            <a href={project.meterDetails?.meterPhoto} target="_blank" rel="noreferrer" className="text-sky-700 font-bold hover:underline">
+                              View Full ➔
+                            </a>
+                          </div>
+                        </div>
+                      )}
+
+                      {meterDocs.map((doc) => (
+                        <div key={doc.id} className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-xs space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Badge variant="outline" className="text-[10px] border-sky-300 text-sky-800 bg-sky-50">{doc.docType}</Badge>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeleteMeterFile(doc.id)}
+                              disabled={isSaving}
+                              className="h-6 w-6 p-0 text-red-500 hover:bg-red-50"
+                              title="Delete meter document"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                          <h4 className="font-bold text-slate-800 truncate">{doc.name}</h4>
+                          <p className="text-[11px] text-slate-400">{new Date(doc.uploadDate).toLocaleDateString()}</p>
+                          <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px]">
+                            <span className="text-slate-500 truncate max-w-[140px]">{doc.notes || "Inspection file"}</span>
+                            <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="text-primary font-bold hover:underline">
+                              View ➔
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
           </div>
         )}
 
@@ -1680,6 +1929,36 @@ export function ProjectMasterFile({
                 </Button>
               </CardHeader>
               <CardContent className="space-y-5">
+                {/* Payment Status Dropdown with Requested Options */}
+                <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl">
+                  <div>
+                    <span className="text-xs font-bold text-slate-800">Current Payment Status (Bhugtan Sthiti):</span>
+                    <p className="text-[11px] text-slate-500">Live payment state according to bank & customer cash/UPI settlement</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={project.payments?.paymentStatus || "Pending"}
+                      onChange={(e) => handleUpdatePaymentStatus(e.target.value)}
+                      disabled={isSaving}
+                      className="h-8 rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold text-slate-800 shadow-sm"
+                    >
+                      <option value="Payment Done">✅ Payment Done</option>
+                      <option value="Pending">⏳ Pending</option>
+                      <option value="Not Given">❌ Not Given</option>
+                      <option value="Other">⚠️ Other</option>
+                    </select>
+                    <Badge className={
+                      project.payments?.paymentStatus === "Payment Done" || project.payments?.paymentStatus === "PAID"
+                        ? "bg-emerald-600 text-white text-[11px]"
+                        : project.payments?.paymentStatus === "Not Given"
+                        ? "bg-red-600 text-white text-[11px]"
+                        : "bg-amber-500 text-white text-[11px]"
+                    }>
+                      {project.payments?.paymentStatus || "Pending"}
+                    </Badge>
+                  </div>
+                </div>
+
                 {/* Cost Adjustment Form */}
                 <form
                   onSubmit={(e) => {
@@ -1707,7 +1986,7 @@ export function ProjectMasterFile({
                     <label className="font-semibold text-slate-700">Net Customer Contribution (₹)</label>
                     <Input name="customerContribution" type="number" defaultValue={project.payments?.customerContribution || 0} className="mt-1 font-bold" />
                   </div>
-                  <Button type="submit" size="sm" variant="outline" className="text-xs">
+                  <Button type="submit" size="sm" variant="outline" className="text-xs font-bold">
                     Save Cost Structure
                   </Button>
                 </form>
@@ -1723,6 +2002,7 @@ export function ProjectMasterFile({
                         <th className="py-2.5 px-3">Transaction / Ref ID</th>
                         <th className="py-2.5 px-3">Receipt No</th>
                         <th className="py-2.5 px-3">Notes</th>
+                        <th className="py-2.5 px-3 text-right">Delete</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -1737,11 +2017,23 @@ export function ProjectMasterFile({
                             <td className="py-2.5 px-3 font-mono">{txn.transactionId || "—"}</td>
                             <td className="py-2.5 px-3">{txn.receiptNumber || "—"}</td>
                             <td className="py-2.5 px-3 text-slate-600">{txn.notes || "—"}</td>
+                            <td className="py-2.5 px-3 text-right">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeletePayment(txn.id)}
+                                disabled={isSaving}
+                                className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                title="Delete this payment transaction"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={6} className="py-6 text-center text-slate-400">
+                          <td colSpan={7} className="py-6 text-center text-slate-400">
                             No payment transactions recorded yet. Click "Record Payment" to add customer advance.
                           </td>
                         </tr>
@@ -2071,14 +2363,37 @@ export function ProjectMasterFile({
                       <p className="text-xs text-slate-500 truncate">{doc.fileUrl}</p>
                       <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
                         <span className="text-slate-400">{new Date(doc.uploadDate).toLocaleDateString()}</span>
-                        <a
-                          href={doc.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-semibold text-primary hover:underline"
-                        >
-                          View File →
-                        </a>
+                        <div className="flex items-center gap-1.5">
+                          <a
+                            href={doc.fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-semibold text-primary hover:underline"
+                          >
+                            View File ➔
+                          </a>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingDoc(doc);
+                              setIsEditDocModalOpen(true);
+                            }}
+                            className="h-6 w-6 p-0 text-primary hover:bg-primary/10"
+                            title="Edit Document Info"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteDocument(doc.id)}
+                            className="h-6 w-6 p-0 text-red-500 hover:bg-red-50"
+                            title="Delete Document"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))
@@ -2630,6 +2945,164 @@ export function ProjectMasterFile({
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => setIsIssueModalOpen(false)}>Cancel</Button>
               <Button type="submit" className="bg-primary text-white">Log Issue</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================= */}
+      {/* MODAL: EDIT DOCUMENT INFO */}
+      {/* ========================================================= */}
+      <Dialog open={isEditDocModalOpen} onOpenChange={setIsEditDocModalOpen}>
+        <DialogContent className="max-w-md bg-white p-6 rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Edit className="h-4 w-4 text-primary" /> Edit Customer Document
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600">
+              Update document title, type, verification status, and notes.
+            </DialogDescription>
+          </DialogHeader>
+          {editingDoc && (
+            <form onSubmit={handleEditDocumentSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-slate-700">Document Title *</label>
+                <Input
+                  required
+                  value={editingDoc.name}
+                  onChange={(e) => setEditingDoc({ ...editingDoc, name: e.target.value })}
+                  className="mt-1 font-medium"
+                />
+              </div>
+              <div>
+                <label className="font-semibold text-slate-700">Document Type</label>
+                <select
+                  value={editingDoc.docType}
+                  onChange={(e) => setEditingDoc({ ...editingDoc, docType: e.target.value })}
+                  className="w-full mt-1 h-9 rounded border border-slate-200 bg-white px-2 font-medium"
+                >
+                  <option value="Aadhaar">Aadhaar Card</option>
+                  <option value="PAN">PAN Card</option>
+                  <option value="Electricity Bill">Electricity Bill</option>
+                  <option value="Bank Documents">Bank Documents / Passbook</option>
+                  <option value="Loan Approval">Loan Approval</option>
+                  <option value="Loan Disbursement Proof">Loan Disbursement Proof</option>
+                  <option value="Subsidy Documents">Subsidy Documents</option>
+                  <option value="Installation Documents">Installation Documents</option>
+                  <option value="Meter Documents">Meter Documents</option>
+                  <option value="Agreement">Agreement</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="font-semibold text-slate-700">Verification Status</label>
+                <select
+                  value={editingDoc.status}
+                  onChange={(e) => setEditingDoc({ ...editingDoc, status: e.target.value })}
+                  className="w-full mt-1 h-9 rounded border border-slate-200 bg-white px-2 font-bold"
+                >
+                  <option value="UPLOADED">UPLOADED</option>
+                  <option value="VERIFIED">VERIFIED</option>
+                  <option value="PENDING">PENDING</option>
+                  <option value="REJECTED">REJECTED</option>
+                </select>
+              </div>
+              <div>
+                <label className="font-semibold text-slate-700">Notes / Remarks</label>
+                <Input
+                  value={editingDoc.notes || ""}
+                  onChange={(e) => setEditingDoc({ ...editingDoc, notes: e.target.value })}
+                  placeholder="e.g. Verified by UPPCL division office"
+                  className="mt-1"
+                />
+              </div>
+              <DialogFooter className="pt-2">
+                <Button type="button" variant="outline" onClick={() => setIsEditDocModalOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={isSaving} className="bg-primary text-white">Save Changes</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================= */}
+      {/* MODAL: UPLOAD METER FILE / PHOTO */}
+      {/* ========================================================= */}
+      <Dialog open={isMeterFileModalOpen} onOpenChange={setIsMeterFileModalOpen}>
+        <DialogContent className="max-w-md bg-white p-6 rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Cpu className="h-5 w-5 text-sky-600" /> Upload Net-Meter File / Photo
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600">
+              Upload bi-directional smart meter photo, DISCOM testing lab certificate, or meter seal photo.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUploadMeterFile} className="space-y-3 text-xs">
+            <div>
+              <label className="font-semibold text-slate-700">Document / Photo Title *</label>
+              <Input
+                required
+                value={newMeterFile.name}
+                onChange={(e) => setNewMeterFile({ ...newMeterFile, name: e.target.value })}
+                placeholder="e.g. Smart Bi-Directional Net Meter Final Photo"
+                className="mt-1 font-medium"
+              />
+            </div>
+            <div>
+              <label className="font-semibold text-slate-700">Meter Category</label>
+              <select
+                value={newMeterFile.docType}
+                onChange={(e) => setNewMeterFile({ ...newMeterFile, docType: e.target.value })}
+                className="w-full mt-1 h-9 rounded border border-slate-200 bg-white px-2 font-medium"
+              >
+                <option value="Meter Documents">Meter Documents & Clearance</option>
+                <option value="Meter Photo">Net-Meter Front Photo</option>
+                <option value="Meter Test Report">Meter Test & Calibration Report</option>
+                <option value="DISCOM Seal Verification">DISCOM Meter Seal Verification</option>
+              </select>
+            </div>
+            <div>
+              <label className="font-semibold text-slate-700">Select File / Take Photo *</label>
+              <Input
+                type="file"
+                accept="image/*,.pdf"
+                required={!newMeterFile.fileUrl}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    if (typeof reader.result === "string") {
+                      setNewMeterFile({
+                        ...newMeterFile,
+                        fileUrl: reader.result,
+                        name: newMeterFile.name || file.name,
+                      });
+                    }
+                  };
+                  reader.readAsDataURL(file);
+                }}
+                className="mt-1"
+              />
+            </div>
+            {newMeterFile.fileUrl && newMeterFile.fileUrl.startsWith("data:image") && (
+              <div className="h-24 rounded-lg border p-1 bg-slate-50 flex items-center justify-center">
+                <img src={newMeterFile.fileUrl} alt="Preview" className="h-full object-contain rounded" />
+              </div>
+            )}
+            <div>
+              <label className="font-semibold text-slate-700">Notes / Remarks</label>
+              <Input
+                value={newMeterFile.notes}
+                onChange={(e) => setNewMeterFile({ ...newMeterFile, notes: e.target.value })}
+                placeholder="e.g. Installed and optical seal verified by DISCOM engineer"
+                className="mt-1"
+              />
+            </div>
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setIsMeterFileModalOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={isSaving} className="bg-sky-600 hover:bg-sky-700 text-white">Upload Meter File</Button>
             </DialogFooter>
           </form>
         </DialogContent>

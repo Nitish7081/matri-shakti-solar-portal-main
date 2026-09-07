@@ -1247,11 +1247,12 @@ export async function handleApiRequest(request: Request): Promise<Response> {
       }, 201);
     }
 
-    // Match /api/projects/:id (or sub-actions)
-    const projectActionMatch = path.match(/^\/api\/projects\/([a-zA-Z0-9_-]+)(?:\/([a-zA-Z0-9_-]+))?$/);
+    // Match /api/projects/:id (or sub-actions like /api/projects/:id/payments/:subId)
+    const projectActionMatch = path.match(/^\/api\/projects\/([a-zA-Z0-9_-]+)(?:\/([a-zA-Z0-9_-]+))?(?:\/([a-zA-Z0-9_-]+))?$/);
     if (projectActionMatch) {
       const projectParam = projectActionMatch[1];
-      const action = projectActionMatch[2]; // e.g. "payments", "documents", "followups", "issues"
+      const action = projectActionMatch[2]; // e.g. "payments", "documents", "followups", "issues", "meter-files"
+      const subId = projectActionMatch[3]; // e.g. transaction ID, doc ID, followUp ID
       await connectDB();
 
       const project = await ProjectModel.findOne({
@@ -1259,6 +1260,15 @@ export async function handleApiRequest(request: Request): Promise<Response> {
       });
 
       if (!project) return errorResponse("Customer project not found", 404);
+
+      // DELETE /api/projects/:id (Delete Entire Project Record)
+      if (!action && method === "DELETE") {
+        await ProjectModel.deleteOne({ _id: project._id });
+        return jsonResponse({
+          success: true,
+          message: `Project ${project.projectId} ("${project.customerName}") deleted successfully`,
+        });
+      }
 
       // GET /api/projects/:id (Full Master File)
       if (!action && method === "GET") {
@@ -1385,6 +1395,66 @@ export async function handleApiRequest(request: Request): Promise<Response> {
         });
       }
 
+      // DELETE /api/projects/:id/payments/:txnId (or ?txnId=...)
+      if (action === "payments" && method === "DELETE") {
+        let txnIdToDelete = subId || url.searchParams.get("txnId") || url.searchParams.get("id");
+        if (!txnIdToDelete) {
+          try {
+            const body: any = await request.json();
+            txnIdToDelete = body?.id || body?.txnId;
+          } catch {
+            // ignore
+          }
+        }
+        if (!txnIdToDelete) return errorResponse("Payment transaction ID required", 400);
+
+        const beforeCount = (project.payments.transactions || []).length;
+        project.payments.transactions = (project.payments.transactions || []).filter(
+          (t: any) => t.id !== txnIdToDelete && (t as any)._id?.toString() !== txnIdToDelete
+        );
+
+        const totalPaid = (project.payments.transactions || []).reduce((acc: number, t: any) => acc + (t.amount || 0), 0);
+        project.payments.amountPaid = totalPaid;
+        project.payments.amountRemaining = Math.max(0, (project.payments.customerContribution || 0) - totalPaid);
+        if (totalPaid >= (project.payments.customerContribution || 0) && totalPaid > 0) {
+          project.payments.paymentStatus = "PAID";
+        } else if (totalPaid > 0) {
+          project.payments.paymentStatus = "PARTIAL";
+        } else {
+          project.payments.paymentStatus = "PENDING";
+        }
+
+        await project.save();
+        return jsonResponse({
+          success: true,
+          message: "Payment transaction deleted and balance updated successfully",
+          project,
+        });
+      }
+
+      // PATCH /api/projects/:id/payments (Update overall payment status: Payment Done, Pending, Not Given, Other)
+      if (action === "payments" && method === "PATCH") {
+        let body: any;
+        try {
+          body = await request.json();
+        } catch {
+          return errorResponse("Invalid JSON", 400);
+        }
+        if (body.paymentStatus !== undefined) {
+          project.payments.paymentStatus = body.paymentStatus;
+        }
+        if (body.totalProjectCost !== undefined) project.payments.totalProjectCost = Number(body.totalProjectCost);
+        if (body.customerContribution !== undefined) project.payments.customerContribution = Number(body.customerContribution);
+        if (body.amountPaid !== undefined) project.payments.amountPaid = Number(body.amountPaid);
+        if (body.amountRemaining !== undefined) project.payments.amountRemaining = Number(body.amountRemaining);
+        await project.save();
+        return jsonResponse({
+          success: true,
+          message: "Payment status updated successfully",
+          project,
+        });
+      }
+
       // POST /api/projects/:id/documents (Add Document)
       if (action === "documents" && method === "POST") {
         let body: unknown;
@@ -1424,6 +1494,62 @@ export async function handleApiRequest(request: Request): Promise<Response> {
         return jsonResponse({
           success: true,
           message: `Document "${docData.name}" uploaded successfully!`,
+          project,
+        });
+      }
+
+      // DELETE /api/projects/:id/documents/:docId (or ?docId=...)
+      if (action === "documents" && method === "DELETE") {
+        let docIdToDelete = subId || url.searchParams.get("docId") || url.searchParams.get("id");
+        if (!docIdToDelete) {
+          try {
+            const body: any = await request.json();
+            docIdToDelete = body?.id || body?.docId;
+          } catch {
+            // ignore
+          }
+        }
+        if (!docIdToDelete) return errorResponse("Document ID required", 400);
+
+        project.documents = (project.documents || []).filter(
+          (d: any) => d.id !== docIdToDelete && (d as any)._id?.toString() !== docIdToDelete
+        );
+
+        await project.save();
+        return jsonResponse({
+          success: true,
+          message: "Document deleted successfully",
+          project,
+        });
+      }
+
+      // PATCH /api/projects/:id/documents/:docId (Edit Document metadata)
+      if (action === "documents" && method === "PATCH") {
+        let docIdToUpdate = subId || url.searchParams.get("docId") || url.searchParams.get("id");
+        let body: any;
+        try {
+          body = await request.json();
+          if (!docIdToUpdate) docIdToUpdate = body?.id;
+        } catch {
+          return errorResponse("Invalid JSON", 400);
+        }
+
+        const docIndex = (project.documents || []).findIndex(
+          (d: any) => d.id === docIdToUpdate || (d as any)._id?.toString() === docIdToUpdate
+        );
+        if (docIndex === -1) return errorResponse("Document not found", 404);
+
+        const currentDoc = project.documents[docIndex] as any;
+        if (body.name) currentDoc.name = body.name;
+        if (body.docType) currentDoc.docType = body.docType;
+        if (body.status) currentDoc.status = body.status;
+        if (body.notes !== undefined) currentDoc.notes = body.notes;
+        if (body.fileUrl) currentDoc.fileUrl = body.fileUrl;
+
+        await project.save();
+        return jsonResponse({
+          success: true,
+          message: "Document updated successfully",
           project,
         });
       }
@@ -1480,6 +1606,108 @@ export async function handleApiRequest(request: Request): Promise<Response> {
         });
       }
 
+      // PATCH /api/projects/:id/followups (Update Follow-up details)
+      if (action === "followups" && method === "PATCH") {
+        let body: any;
+        try {
+          body = await request.json();
+        } catch {
+          return errorResponse("Invalid JSON", 400);
+        }
+        if (body.currentFollowUp) {
+          project.currentFollowUp = {
+            ...project.currentFollowUp,
+            ...body.currentFollowUp,
+          };
+        }
+        if (body.notes || body.nextFollowUpDate) {
+          project.currentFollowUp.currentDiscussion = body.notes || project.currentFollowUp.currentDiscussion;
+          project.currentFollowUp.nextFollowUpDate = body.nextFollowUpDate || project.currentFollowUp.nextFollowUpDate;
+          project.currentFollowUp.lastContactDate = new Date().toISOString().split("T")[0];
+        }
+        await project.save();
+        return jsonResponse({
+          success: true,
+          message: "Follow-up updated successfully!",
+          project,
+        });
+      }
+
+      // DELETE /api/projects/:id/followups/:id
+      if (action === "followups" && method === "DELETE") {
+        let fuId = subId || url.searchParams.get("id");
+        if (!fuId) {
+          try {
+            const body: any = await request.json();
+            fuId = body?.id;
+          } catch {
+            // ignore
+          }
+        }
+        project.followUps = (project.followUps || []).filter(
+          (f: any) => f.id !== fuId && (f as any)._id?.toString() !== fuId
+        );
+        await project.save();
+        return jsonResponse({
+          success: true,
+          message: "Follow-up log deleted successfully",
+          project,
+        });
+      }
+
+      // POST /api/projects/:id/meter-files (Upload Meter Photos & Inspection Documents)
+      if (action === "meter-files" && method === "POST") {
+        let body: any;
+        try {
+          body = await request.json();
+        } catch {
+          return errorResponse("Invalid JSON", 400);
+        }
+        const newMeterDoc = {
+          id: Date.now().toString(),
+          docType: body.docType || "Meter Documents",
+          name: body.name || "Smart Net-Meter Photo",
+          fileUrl: body.fileUrl || "",
+          uploadDate: new Date().toISOString(),
+          uploadedBy: currentAdmin.name || "Admin",
+          status: "VERIFIED",
+          notes: body.notes || "Bi-directional Net-Meter verification file",
+        };
+        project.documents.push(newMeterDoc as any);
+        if (body.fileUrl) {
+          project.meterDetails.meterPhoto = body.fileUrl;
+        }
+        if (body.configStatus) {
+          project.meterDetails.configStatus = body.configStatus;
+        }
+        if (body.meterNumber) {
+          project.meterDetails.meterNumber = body.meterNumber;
+        }
+        await project.save();
+        return jsonResponse({
+          success: true,
+          message: "Meter file uploaded successfully",
+          project,
+        });
+      }
+
+      // DELETE /api/projects/:id/meter-files/:fileId
+      if (action === "meter-files" && method === "DELETE") {
+        const fileId = subId || url.searchParams.get("id");
+        project.documents = (project.documents || []).filter(
+          (d: any) => d.id !== fileId && (d as any)._id?.toString() !== fileId
+        );
+        if (project.meterDetails.meterPhoto && fileId === "meterPhoto") {
+          project.meterDetails.meterPhoto = "";
+        }
+        await project.save();
+        return jsonResponse({
+          success: true,
+          message: "Meter file deleted successfully",
+          project,
+        });
+      }
+
       // POST /api/projects/:id/issues (Add Issue / Complaint)
       if (action === "issues" && method === "POST") {
         let body: unknown;
@@ -1521,12 +1749,17 @@ export async function handleApiRequest(request: Request): Promise<Response> {
         });
       }
 
-      // DELETE /api/projects/:id
-      if (!action && method === "DELETE") {
-        await ProjectModel.findByIdAndDelete(project._id);
+      // DELETE /api/projects/:id/issues/:id
+      if (action === "issues" && method === "DELETE") {
+        const issueId = subId || url.searchParams.get("id");
+        project.issues = (project.issues || []).filter(
+          (i: any) => i.id !== issueId && (i as any)._id?.toString() !== issueId
+        );
+        await project.save();
         return jsonResponse({
           success: true,
-          message: `Project ${project.projectId} deleted successfully`,
+          message: "Issue deleted successfully",
+          project,
         });
       }
     }
