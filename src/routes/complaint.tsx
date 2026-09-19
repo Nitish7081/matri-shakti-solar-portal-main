@@ -14,7 +14,13 @@ import {
   Wrench,
   Send,
   ArrowRight,
+  Phone,
+  Calendar,
+  UserCheck,
+  FileText,
+  AlertCircle,
 } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 
 export const Route = createFileRoute("/complaint")({
   head: () => ({
@@ -157,6 +163,24 @@ function ComplaintPage() {
         return "bg-gray-500/10 text-gray-600 border-gray-500/30";
       default:
         return "bg-muted text-foreground";
+    }
+  };
+
+  const getWorkflowStep = (status: string) => {
+    switch (status) {
+      case "RECEIVED":
+        return 1;
+      case "UNDER_REVIEW":
+        return 2;
+      case "TECHNICIAN_ASSIGNED":
+        return 3;
+      case "IN_PROGRESS":
+        return 4;
+      case "RESOLVED":
+      case "CLOSED":
+        return 5;
+      default:
+        return 1;
     }
   };
 
@@ -464,7 +488,171 @@ function ComplaintPage() {
                     </div>
                   </CardHeader>
 
-                  <CardContent className="p-6 space-y-5 text-xs">
+                  <CardContent className="p-6 space-y-6 text-xs">
+                    {/* Workflow Progress Stepper */}
+                    <div className="py-2 px-1">
+                      <div className="flex items-center justify-between relative">
+                        <div className="absolute left-0 top-3.5 -translate-y-1/2 h-1 bg-muted w-full -z-0 rounded" />
+                        <div
+                          className="absolute left-0 top-3.5 -translate-y-1/2 h-1 bg-primary transition-all duration-500 -z-0 rounded"
+                          style={{
+                            width: `${
+                              getWorkflowStep(trackedComplaint.status) <= 1
+                                ? 10
+                                : getWorkflowStep(trackedComplaint.status) === 2
+                                ? 32
+                                : getWorkflowStep(trackedComplaint.status) === 3
+                                ? 58
+                                : getWorkflowStep(trackedComplaint.status) === 4
+                                ? 82
+                                : 100
+                            }%`,
+                          }}
+                        />
+
+                        {[
+                          { step: 1, label: "Registered", desc: "Ticket logged" },
+                          { step: 2, label: "Under Review", desc: "Desk analysis" },
+                          { step: 3, label: "Tech Assigned", desc: "Engineer dispatched" },
+                          { step: 4, label: "In Progress", desc: "Field service" },
+                          { step: 5, label: "Resolved", desc: "Work completed" },
+                        ].map((s) => {
+                          const current = getWorkflowStep(trackedComplaint.status);
+                          const isDone = current >= s.step;
+                          const isActive = current === s.step;
+                          return (
+                            <div key={s.step} className="relative z-10 flex flex-col items-center">
+                              <div
+                                className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold transition-all shadow-sm ${
+                                  isDone
+                                    ? "bg-primary text-white ring-4 ring-primary/15"
+                                    : "bg-card border border-border text-muted-foreground"
+                                } ${isActive ? "scale-110 ring-primary/30" : ""}`}
+                              >
+                                {isDone ? <CheckCircle2 className="h-3.5 w-3.5" /> : s.step}
+                              </div>
+                              <span
+                                className={`mt-2 text-[10px] sm:text-[11px] font-semibold text-center whitespace-nowrap ${
+                                  isActive ? "text-primary font-bold" : isDone ? "text-foreground" : "text-muted-foreground"
+                                }`}
+                              >
+                                {s.label}
+                              </span>
+                              <span className="hidden sm:block text-[9px] text-muted-foreground text-center">
+                                {s.desc}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Dedicated Assigned Field Technician & Work Order Card */}
+                    {trackedComplaint.assignedTechnicianName && trackedComplaint.assignedTechnicianName !== "Pending Assignment" ? (
+                      <div className="rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/25 p-5 space-y-4 shadow-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-primary/15 pb-3.5">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold shadow-inner">
+                              <Wrench className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] uppercase tracking-wider font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
+                                  Assigned Field Technician
+                                </span>
+                                {trackedComplaint.assignedDate && (
+                                  <span className="text-[10px] text-muted-foreground">
+                                    Assigned on {trackedComplaint.assignedDate}
+                                  </span>
+                                )}
+                              </div>
+                              <h3 className="text-base font-bold text-foreground mt-0.5">
+                                {trackedComplaint.assignedTechnicianName}
+                              </h3>
+                            </div>
+                          </div>
+
+                          {trackedComplaint.assignedTechnicianPhone && (
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={`tel:${trackedComplaint.assignedTechnicianPhone}`}
+                                className="inline-flex items-center gap-1.5 bg-primary text-white hover:bg-primary/90 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-all"
+                              >
+                                <Phone className="h-3.5 w-3.5" /> Call Engineer
+                              </a>
+                              <a
+                                href={`https://wa.me/91${trackedComplaint.assignedTechnicianPhone.replace(/[^0-9]/g, "").slice(-10)}?text=Hello%20${encodeURIComponent(trackedComplaint.assignedTechnicianName)}%2C%20regarding%20my%20Matri%20Shakti%20Solar%20Service%20Ticket%20${encodeURIComponent(trackedComplaint.complaintId)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-all"
+                              >
+                                <FaWhatsapp className="h-3.5 w-3.5" /> WhatsApp
+                              </a>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="bg-background/90 rounded-lg p-3.5 border border-border/60">
+                            <span className="text-[11px] text-muted-foreground flex items-center gap-1.5 mb-1 font-medium">
+                              <Calendar className="h-3.5 w-3.5 text-primary" /> Scheduled Field Visit
+                            </span>
+                            {trackedComplaint.visitDate ? (
+                              <p className="font-bold text-foreground text-sm flex items-center gap-1.5">
+                                <span>{trackedComplaint.visitDate}</span>
+                                {trackedComplaint.visitTime && (
+                                  <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                                    {trackedComplaint.visitTime}
+                                  </span>
+                                )}
+                              </p>
+                            ) : (
+                              <p className="text-foreground text-xs font-medium">
+                                Visit will be scheduled — technician will coordinate by phone
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="bg-background/90 rounded-lg p-3.5 border border-border/60">
+                            <span className="text-[11px] text-muted-foreground flex items-center gap-1.5 mb-1 font-medium">
+                              <UserCheck className="h-3.5 w-3.5 text-primary" /> Engineer Specialization
+                            </span>
+                            <p className="font-semibold text-foreground text-xs">
+                              {trackedComplaint.assignedTechnicianSpecialization || "Solar Rooftop & Inverter Systems"}
+                            </p>
+                            {trackedComplaint.assignedTechnicianPhone && (
+                              <span className="text-[11px] text-muted-foreground font-mono block mt-0.5">
+                                Mobile: {trackedComplaint.assignedTechnicianPhone}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Assigned Work & Service Scope Details */}
+                        <div className="bg-background/90 rounded-lg p-3.5 border border-border/60 space-y-1">
+                          <span className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
+                            <FileText className="h-3.5 w-3.5 text-primary" /> Assigned Work & Scope of Inspection
+                          </span>
+                          <p className="text-foreground text-xs leading-relaxed bg-muted/40 p-2.5 rounded border border-border/40 font-medium">
+                            {trackedComplaint.assignedWork || "On-site solar installation diagnosis, electrical wiring verification, inverter error code analysis, and component inspection."}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-4 flex items-start gap-3">
+                        <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="font-bold text-xs text-amber-800 dark:text-amber-300">
+                            Technician Dispatch in Progress
+                          </h4>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                            Your service request has been logged and received by our engineering desk. An authorized solar engineer is being allocated to your location. Once dispatched, their name, contact phone, and visit schedule will appear right here.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Customer & Issue Summary Grid */}
                     <div className="grid gap-3 sm:grid-cols-2 rounded-lg bg-muted/30 p-4 border border-border/60">
                       <div>
                         <span className="text-muted-foreground block text-[11px]">Customer Name</span>
@@ -472,10 +660,9 @@ function ComplaintPage() {
                       </div>
 
                       <div>
-                        <span className="text-muted-foreground block text-[11px]">Assigned Technician</span>
+                        <span className="text-muted-foreground block text-[11px]">Ticket Category & Priority</span>
                         <span className="font-bold text-foreground flex items-center gap-1 text-sm">
-                          <Wrench className="h-3.5 w-3.5 text-primary" />
-                          {trackedComplaint.assignedTechnicianName || "Under Review (Dispatch Pending)"}
+                          {trackedComplaint.category} <span className="text-xs font-normal text-muted-foreground">({trackedComplaint.priority} Priority)</span>
                         </span>
                       </div>
                     </div>

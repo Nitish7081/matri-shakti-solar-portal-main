@@ -53,8 +53,12 @@ export interface IComplaintItem {
   priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   assignedTechnicianId?: string;
   assignedTechnicianName?: string;
+  assignedTechnicianPhone?: string;
+  assignedTechnicianSpecialization?: string;
   assignedDate?: string;
   visitDate?: string;
+  visitTime?: string;
+  assignedWork?: string;
   resolution?: string;
   resolutionDate?: string;
   timeline: Array<{
@@ -92,12 +96,20 @@ export function ComplaintManager({ onRefreshStats }: ComplaintManagerProps) {
   // Edit fields
   const [editStatus, setEditStatus] = useState<string>("RECEIVED");
   const [editPriority, setEditPriority] = useState<string>("MEDIUM");
+  const [editTechId, setEditTechId] = useState<string>("");
   const [editTechName, setEditTechName] = useState<string>("");
+  const [editTechPhone, setEditTechPhone] = useState<string>("");
+  const [editTechSpec, setEditTechSpec] = useState<string>("");
+  const [editVisitDate, setEditVisitDate] = useState<string>("");
+  const [editVisitTime, setEditVisitTime] = useState<string>("");
+  const [editAssignedWork, setEditAssignedWork] = useState<string>("");
   const [editResolution, setEditResolution] = useState<string>("");
   const [editNotes, setEditNotes] = useState<string>("");
 
   // Available Technicians list for assignment
-  const [availableTechs, setAvailableTechs] = useState<Array<{ name: string; phone: string; technicianId: string }>>([]);
+  const [availableTechs, setAvailableTechs] = useState<
+    Array<{ name: string; phone: string; technicianId: string; specialization?: string }>
+  >([]);
 
   // Delete State
   const [itemToDelete, setItemToDelete] = useState<IComplaintItem | null>(null);
@@ -160,10 +172,41 @@ export function ComplaintManager({ onRefreshStats }: ComplaintManagerProps) {
     setSelectedComplaint(item);
     setEditStatus(item.status);
     setEditPriority(item.priority);
+    setEditTechId(item.assignedTechnicianId || "");
     setEditTechName(item.assignedTechnicianName || "");
+    setEditTechPhone(item.assignedTechnicianPhone || "");
+    setEditTechSpec(item.assignedTechnicianSpecialization || "");
+    setEditVisitDate(item.visitDate || "");
+    setEditVisitTime(item.visitTime || "");
+    setEditAssignedWork(item.assignedWork || "");
     setEditResolution(item.resolution || "");
     setEditNotes(item.notes || "");
     setIsEditModalOpen(true);
+  };
+
+  const handleSelectTech = (identifier: string) => {
+    if (!identifier) {
+      setEditTechId("");
+      setEditTechName("");
+      setEditTechPhone("");
+      setEditTechSpec("");
+      return;
+    }
+    const found = availableTechs.find((t) => t.technicianId === identifier || t.name === identifier);
+    if (found) {
+      setEditTechId(found.technicianId);
+      setEditTechName(found.name);
+      setEditTechPhone(found.phone);
+      setEditTechSpec(found.specialization || "Solar Rooftop & Inverter Systems");
+      if (editStatus === "RECEIVED" || editStatus === "UNDER_REVIEW") {
+        setEditStatus("TECHNICIAN_ASSIGNED");
+      }
+      if (!editAssignedWork) {
+        setEditAssignedWork(`On-site solar inspection, error diagnostics & electrical test for ticket ${selectedComplaint?.complaintId || ""}`);
+      }
+    } else {
+      setEditTechName(identifier);
+    }
   };
 
   const handleUpdateComplaint = async () => {
@@ -179,7 +222,13 @@ export function ComplaintManager({ onRefreshStats }: ComplaintManagerProps) {
         body: JSON.stringify({
           status: editStatus,
           priority: editPriority,
+          assignedTechnicianId: editTechId,
           assignedTechnicianName: editTechName,
+          assignedTechnicianPhone: editTechPhone,
+          assignedTechnicianSpecialization: editTechSpec,
+          visitDate: editVisitDate,
+          visitTime: editVisitTime,
+          assignedWork: editAssignedWork,
           resolution: editResolution,
           notes: editNotes,
         }),
@@ -188,7 +237,7 @@ export function ComplaintManager({ onRefreshStats }: ComplaintManagerProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to update complaint");
 
-      toast.success("Complaint record and timeline updated!");
+      toast.success("Complaint record, technician assignment & timeline updated!");
       setIsEditModalOpen(false);
       fetchComplaints();
       if (onRefreshStats) onRefreshStats();
@@ -466,9 +515,21 @@ export function ComplaintManager({ onRefreshStats }: ComplaintManagerProps) {
 
                     <td className="py-3 px-4">
                       {item.assignedTechnicianName ? (
-                        <div className="flex items-center gap-1 text-foreground font-medium">
-                          <Wrench className="h-3 w-3 text-primary" />
-                          {item.assignedTechnicianName}
+                        <div>
+                          <div className="flex items-center gap-1 text-foreground font-medium text-xs">
+                            <Wrench className="h-3 w-3 text-primary shrink-0" />
+                            <span>{item.assignedTechnicianName}</span>
+                          </div>
+                          {item.assignedTechnicianPhone && (
+                            <span className="text-[10px] text-muted-foreground block font-mono pl-4">
+                              {item.assignedTechnicianPhone}
+                            </span>
+                          )}
+                          {item.visitDate && (
+                            <span className="text-[10px] text-primary block pl-4">
+                              Visit: {item.visitDate}
+                            </span>
+                          )}
                         </div>
                       ) : (
                         <span className="text-muted-foreground italic text-[11px]">Unassigned</span>
@@ -571,15 +632,46 @@ export function ComplaintManager({ onRefreshStats }: ComplaintManagerProps) {
                   <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/40">
                     <div>
                       <span className="text-muted-foreground block text-[11px]">Assigned Technician:</span>
-                      <span className="font-semibold text-foreground">
+                      <span className="font-semibold text-foreground flex items-center gap-1">
+                        <Wrench className="h-3 w-3 text-primary" />
                         {selectedComplaint.assignedTechnicianName || "Not assigned yet"}
                       </span>
+                      {selectedComplaint.assignedTechnicianPhone && (
+                        <div className="flex items-center gap-2 mt-0.5 text-[11px]">
+                          <a href={`tel:${selectedComplaint.assignedTechnicianPhone}`} className="text-primary hover:underline flex items-center gap-0.5">
+                            <Phone className="h-2.5 w-2.5" /> {selectedComplaint.assignedTechnicianPhone}
+                          </a>
+                          <a
+                            href={`https://wa.me/91${selectedComplaint.assignedTechnicianPhone.replace(/[^0-9]/g, "").slice(-10)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-emerald-500 hover:text-emerald-600"
+                            title="WhatsApp Technician"
+                          >
+                            <FaWhatsapp className="h-3 w-3" />
+                          </a>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <span className="text-muted-foreground block text-[11px]">Preferred Contact:</span>
                       <span className="font-medium">{selectedComplaint.preferredContact || "Phone Call"}</span>
+                      {selectedComplaint.visitDate && (
+                        <span className="text-primary font-medium block mt-0.5 text-[11px]">
+                          Visit: {selectedComplaint.visitDate} {selectedComplaint.visitTime ? `(${selectedComplaint.visitTime})` : ""}
+                        </span>
+                      )}
                     </div>
                   </div>
+
+                  {selectedComplaint.assignedWork && (
+                    <div className="pt-1.5 border-t border-border/40">
+                      <span className="text-muted-foreground block text-[11px] font-semibold">Assigned Work / Service Scope:</span>
+                      <span className="text-foreground bg-primary/5 p-1.5 rounded block mt-0.5 border border-primary/20 text-[11px]">
+                        {selectedComplaint.assignedWork}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -692,20 +784,87 @@ export function ComplaintManager({ onRefreshStats }: ComplaintManagerProps) {
                   </div>
                 </div>
 
-                <div>
-                  <label className="font-medium text-foreground block mb-1">Assign Technician</label>
-                  <select
-                    value={editTechName}
-                    onChange={(e) => setEditTechName(e.target.value)}
-                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    <option value="">-- Select Technician --</option>
-                    {availableTechs.map((t) => (
-                      <option key={t.technicianId} value={t.name}>
-                        {t.name} ({t.phone})
-                      </option>
-                    ))}
-                  </select>
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
+                      <Wrench className="h-3.5 w-3.5 text-primary" /> Assign Field Technician & Schedule
+                    </label>
+                    {editTechName && (
+                      <span className="text-[10px] text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded font-medium">
+                        Technician Selected
+                      </span>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-muted-foreground block mb-1">Select from Registered Technicians</label>
+                    <select
+                      value={editTechId || editTechName}
+                      onChange={(e) => handleSelectTech(e.target.value)}
+                      className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="">-- Choose Technician or type manually below --</option>
+                      {availableTechs.map((t) => (
+                        <option key={t.technicianId} value={t.technicianId}>
+                          {t.name} • {t.phone} ({t.specialization || "Solar Specialist"})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] text-muted-foreground block mb-1">Technician Name</label>
+                      <Input
+                        placeholder="e.g. Ramesh Sharma"
+                        value={editTechName}
+                        onChange={(e) => setEditTechName(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-muted-foreground block mb-1">Contact Phone</label>
+                      <Input
+                        placeholder="10-digit phone"
+                        value={editTechPhone}
+                        onChange={(e) => setEditTechPhone(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] text-muted-foreground block mb-1">Scheduled Visit Date</label>
+                      <Input
+                        type="date"
+                        value={editVisitDate}
+                        onChange={(e) => setEditVisitDate(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-muted-foreground block mb-1">Visit Time Window</label>
+                      <Input
+                        placeholder="e.g. 10:00 AM - 01:00 PM"
+                        value={editVisitTime}
+                        onChange={(e) => setEditVisitTime(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-muted-foreground block mb-1">
+                      Assigned Work / Task Details <span className="text-[10px] text-primary">(Visible to customer on portal)</span>
+                    </label>
+                    <Textarea
+                      placeholder="e.g. On-site diagnosis of inverter fault code, DC string voltage testing, and fuse replacement..."
+                      value={editAssignedWork}
+                      onChange={(e) => setEditAssignedWork(e.target.value)}
+                      className="text-xs min-h-[50px]"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -721,7 +880,7 @@ export function ComplaintManager({ onRefreshStats }: ComplaintManagerProps) {
                 <div>
                   <label className="font-medium text-foreground block mb-1">Internal Notes</label>
                   <Input
-                    placeholder="Customer contact notes or visit schedule..."
+                    placeholder="Customer contact notes or internal remarks..."
                     value={editNotes}
                     onChange={(e) => setEditNotes(e.target.value)}
                     className="h-9 text-xs"

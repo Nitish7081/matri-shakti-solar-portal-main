@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import { AdminModel } from "./models/Admin";
 import { SolarCompanyModel } from "./models/SolarCompany";
 import { SolarPackageModel } from "./models/SolarPackage";
+import { TechnicianModel } from "./models/Technician";
 
 dotenv.config();
 
@@ -51,6 +52,7 @@ export async function connectDB() {
         console.log("[MongoDB] Connected successfully to", MONGODB_URI.split("@").pop()?.split("?")[0] || "database");
         await seedDefaultAdmin();
         await seedSolarCatalog();
+        await seedDefaultTechnicians();
         return m;
       } catch (atlasErr) {
         console.warn("[MongoDB Atlas] Could not connect to Atlas cluster:", (atlasErr as Error).message);
@@ -61,6 +63,7 @@ export async function connectDB() {
           console.log("[MongoDB] Successfully connected to local MongoDB fallback!");
           await seedDefaultAdmin();
           await seedSolarCatalog();
+          await seedDefaultTechnicians();
           return localM;
         } catch (localErr) {
           console.error("[MongoDB] Both Atlas and Local MongoDB connection failed.");
@@ -228,3 +231,61 @@ export async function seedSolarCatalog() {
     console.warn("[MongoDB] Solar catalog seed note:", (err as Error).message);
   }
 }
+
+export async function seedDefaultTechnicians() {
+  try {
+    const techCount = await TechnicianModel.countDocuments();
+    if (techCount === 0) {
+      console.log("[MongoDB] Seeding default Solar Technicians...");
+      const initialTechs = [
+        {
+          technicianId: "TECH-2026-000001",
+          name: "Ramesh Sharma",
+          phone: "9876543210",
+          email: "ramesh.sharma@matrishakti.com",
+          address: "Sector 14, Gorakhpur, UP",
+          specialization: "Solar Rooftop & Inverter Systems",
+          active: true,
+          availability: "AVAILABLE",
+          assignedJobsCount: 0,
+          assignedProjectIds: [],
+          assignedComplaintIds: [],
+          notes: "Senior Solar Inverter & Grid Synchronization Specialist with 7+ years experience.",
+        },
+        {
+          technicianId: "TECH-2026-000002",
+          name: "Amit Patel",
+          phone: "9812345678",
+          email: "amit.patel@matrishakti.com",
+          address: "Civil Lines, Prayagraj, UP",
+          specialization: "Electrical & Net-Metering Engineer",
+          active: true,
+          availability: "AVAILABLE",
+          assignedJobsCount: 0,
+          assignedProjectIds: [],
+          assignedComplaintIds: [],
+          notes: "Discom Net-metering, DISCOM liaising, and LT/HT connection expert.",
+        },
+        {
+          technicianId: "TECH-2026-000003",
+          name: "Rajesh Verma",
+          phone: "9765432109",
+          email: "rajesh.verma@matrishakti.com",
+          address: "Gomti Nagar, Lucknow, UP",
+          specialization: "Solar PV Modules & Structure Maintenance",
+          active: true,
+          availability: "AVAILABLE",
+          assignedJobsCount: 0,
+          assignedProjectIds: [],
+          assignedComplaintIds: [],
+          notes: "PV panel cleaning, earthing inspection, and structure re-torque specialist.",
+        },
+      ];
+      await TechnicianModel.insertMany(initialTechs);
+      console.log(`[MongoDB] Created ${initialTechs.length} default solar technicians.`);
+    }
+  } catch (err) {
+    console.warn("[MongoDB] Technician seed note:", (err as Error).message);
+  }
+}
+

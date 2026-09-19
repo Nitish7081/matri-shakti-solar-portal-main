@@ -49,8 +49,12 @@ export interface IComplaint {
   priority: ComplaintPriority;
   assignedTechnicianId?: string;
   assignedTechnicianName?: string;
+  assignedTechnicianPhone?: string;
+  assignedTechnicianSpecialization?: string;
   assignedDate?: string;
   visitDate?: string;
+  visitTime?: string;
+  assignedWork?: string;
   resolution?: string;
   resolutionDate?: string;
   timeline: IComplaintTimelineEvent[];
@@ -162,11 +166,27 @@ const ComplaintSchema = new Schema<IComplaint>(
       type: String,
       default: "",
     },
+    assignedTechnicianPhone: {
+      type: String,
+      default: "",
+    },
+    assignedTechnicianSpecialization: {
+      type: String,
+      default: "",
+    },
     assignedDate: {
       type: String,
       default: "",
     },
     visitDate: {
+      type: String,
+      default: "",
+    },
+    visitTime: {
+      type: String,
+      default: "",
+    },
+    assignedWork: {
       type: String,
       default: "",
     },

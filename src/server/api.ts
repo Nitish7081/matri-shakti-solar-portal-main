@@ -379,6 +379,26 @@ export async function handleApiRequest(request: Request): Promise<Response> {
         );
       }
 
+      // Attempt smart fill if technician phone is missing
+      let techPhone = complaint.assignedTechnicianPhone || "";
+      let techSpec = complaint.assignedTechnicianSpecialization || "";
+      if (complaint.assignedTechnicianName && (!techPhone || !techSpec)) {
+        try {
+          const techDoc = await TechnicianModel.findOne({
+            $or: [
+              { technicianId: complaint.assignedTechnicianId || "___" },
+              { name: complaint.assignedTechnicianName || "___" },
+            ],
+          });
+          if (techDoc) {
+            if (!techPhone && techDoc.phone) techPhone = techDoc.phone;
+            if (!techSpec && techDoc.specialization) techSpec = techDoc.specialization;
+          }
+        } catch {
+          // ignore lookup error
+        }
+      }
+
       return jsonResponse({
         success: true,
         complaint: {
@@ -388,12 +408,18 @@ export async function handleApiRequest(request: Request): Promise<Response> {
           description: complaint.description,
           status: complaint.status,
           priority: complaint.priority,
-          assignedTechnicianName: complaint.assignedTechnicianName || "Pending Assignment",
-          assignedDate: complaint.assignedDate,
-          visitDate: complaint.visitDate,
-          resolution: complaint.resolution,
-          resolutionDate: complaint.resolutionDate,
-          timeline: complaint.timeline,
+          assignedTechnicianId: complaint.assignedTechnicianId || "",
+          assignedTechnicianName: complaint.assignedTechnicianName || "",
+          assignedTechnicianPhone: techPhone,
+          assignedTechnicianSpecialization: techSpec,
+          assignedDate: complaint.assignedDate || "",
+          visitDate: complaint.visitDate || "",
+          visitTime: complaint.visitTime || "",
+          assignedWork: complaint.assignedWork || "",
+          resolution: complaint.resolution || "",
+          resolutionDate: complaint.resolutionDate || "",
+          notes: complaint.notes || "",
+          timeline: complaint.timeline || [],
           createdAt: complaint.createdAt,
           updatedAt: complaint.updatedAt,
         },
@@ -2581,33 +2607,91 @@ export async function handleApiRequest(request: Request): Promise<Response> {
         const updateData = parseResult.data;
         const oldStatus = complaint.status;
 
-        // Apply fields
+        // Apply basic fields
         if (updateData.status) complaint.status = updateData.status;
         if (updateData.priority) complaint.priority = updateData.priority;
-        if (updateData.assignedTechnicianName) {
-          complaint.assignedTechnicianName = updateData.assignedTechnicianName;
-          complaint.assignedDate = new Date().toISOString().split("T")[0];
-          // If status was RECEIVED or UNDER_REVIEW, transition to TECHNICIAN_ASSIGNED
-          if (["RECEIVED", "UNDER_REVIEW"].includes(complaint.status)) {
-            complaint.status = "TECHNICIAN_ASSIGNED";
-          }
-        }
-        if (updateData.assignedTechnicianId) complaint.assignedTechnicianId = updateData.assignedTechnicianId;
-        if (updateData.resolution) {
+        if (updateData.resolution !== undefined) {
           complaint.resolution = updateData.resolution;
-          complaint.resolutionDate = new Date().toISOString().split("T")[0];
+          complaint.resolutionDate = updateData.resolution ? (complaint.resolutionDate || new Date().toISOString().split("T")[0]) : "";
         }
-        if (updateData.notes) complaint.notes = updateData.notes;
+        if (updateData.notes !== undefined) complaint.notes = updateData.notes;
+        if (updateData.assignedWork !== undefined) complaint.assignedWork = updateData.assignedWork;
+        if (updateData.visitDate !== undefined) complaint.visitDate = updateData.visitDate;
+        if (updateData.visitTime !== undefined) complaint.visitTime = updateData.visitTime;
+
+        // Technician Assignment logic
+        const techNameUpdated = updateData.assignedTechnicianName !== undefined;
+        const techIdUpdated = updateData.assignedTechnicianId !== undefined;
+        let assignedTechDoc: any = null;
+
+        if (techNameUpdated || techIdUpdated) {
+          complaint.assignedTechnicianName = updateData.assignedTechnicianName ?? complaint.assignedTechnicianName;
+          if (updateData.assignedTechnicianId !== undefined) {
+            complaint.assignedTechnicianId = updateData.assignedTechnicianId;
+          }
+
+          // If technician is assigned, find technician doc if available
+          if (complaint.assignedTechnicianName || complaint.assignedTechnicianId) {
+            try {
+              assignedTechDoc = await TechnicianModel.findOne({
+                $or: [
+                  { technicianId: complaint.assignedTechnicianId || "___" },
+                  { name: complaint.assignedTechnicianName || "___" },
+                ],
+              });
+            } catch {
+              // ignore
+            }
+
+            // Set phone & specialization
+            if (updateData.assignedTechnicianPhone) {
+              complaint.assignedTechnicianPhone = updateData.assignedTechnicianPhone;
+            } else if (assignedTechDoc?.phone) {
+              complaint.assignedTechnicianPhone = assignedTechDoc.phone;
+            }
+
+            if (updateData.assignedTechnicianSpecialization) {
+              complaint.assignedTechnicianSpecialization = updateData.assignedTechnicianSpecialization;
+            } else if (assignedTechDoc?.specialization) {
+              complaint.assignedTechnicianSpecialization = assignedTechDoc.specialization;
+            }
+
+            complaint.assignedDate = updateData.assignedDate || complaint.assignedDate || new Date().toISOString().split("T")[0];
+
+            // Auto-advance status if it was in early stages and not explicitly set otherwise
+            if (!updateData.status && ["RECEIVED", "UNDER_REVIEW"].includes(complaint.status)) {
+              complaint.status = "TECHNICIAN_ASSIGNED";
+            }
+
+            // Update Technician's own workload & job list
+            if (assignedTechDoc) {
+              if (!assignedTechDoc.assignedComplaintIds.includes(complaint.complaintId)) {
+                assignedTechDoc.assignedComplaintIds.push(complaint.complaintId);
+              }
+              assignedTechDoc.assignedJobsCount = (assignedTechDoc.assignedProjectIds?.length || 0) + (assignedTechDoc.assignedComplaintIds?.length || 0);
+              assignedTechDoc.availability = "ON_JOB";
+              await assignedTechDoc.save();
+            }
+          }
+        } else {
+          if (updateData.assignedTechnicianPhone !== undefined) complaint.assignedTechnicianPhone = updateData.assignedTechnicianPhone;
+          if (updateData.assignedTechnicianSpecialization !== undefined) complaint.assignedTechnicianSpecialization = updateData.assignedTechnicianSpecialization;
+        }
 
         // Automatically log timeline event
         const timelineTitle =
           updateData.status && updateData.status !== oldStatus
             ? `Status updated to ${updateData.status}`
-            : updateData.assignedTechnicianName
-            ? `Technician Assigned: ${updateData.assignedTechnicianName}`
+            : complaint.assignedTechnicianName && (techNameUpdated || techIdUpdated)
+            ? `Technician Assigned: ${complaint.assignedTechnicianName}`
             : updateData.resolution
             ? `Resolution recorded`
             : `Complaint details updated`;
+
+        const timelineNotes =
+          complaint.assignedTechnicianName && (techNameUpdated || techIdUpdated)
+            ? `Assigned to ${complaint.assignedTechnicianName}${complaint.assignedTechnicianPhone ? ` (${complaint.assignedTechnicianPhone})` : ""}${complaint.visitDate ? ` | Scheduled Visit: ${complaint.visitDate} ${complaint.visitTime || ""}` : ""}${complaint.assignedWork ? ` | Scope: ${complaint.assignedWork}` : ""}`
+            : updateData.notes || updateData.resolution || `Changed from ${oldStatus} to ${complaint.status}`;
 
         complaint.timeline.push({
           id: Date.now().toString(),
@@ -2616,7 +2700,7 @@ export async function handleApiRequest(request: Request): Promise<Response> {
           date: new Date().toISOString().split("T")[0],
           time: new Date().toLocaleTimeString(),
           user: currentAdmin.name || "Admin",
-          notes: updateData.notes || updateData.resolution || `Changed from ${oldStatus} to ${complaint.status}`,
+          notes: timelineNotes,
         });
 
         await complaint.save();

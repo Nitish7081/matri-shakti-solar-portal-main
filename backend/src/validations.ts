@@ -376,6 +376,12 @@ export const updateComplaintSchema = z.object({
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
   assignedTechnicianId: z.string().optional(),
   assignedTechnicianName: z.string().optional(),
+  assignedTechnicianPhone: z.string().optional(),
+  assignedTechnicianSpecialization: z.string().optional(),
+  assignedDate: z.string().optional(),
+  visitDate: z.string().optional(),
+  visitTime: z.string().optional(),
+  assignedWork: z.string().optional(),
   resolution: z.string().optional(),
   notes: z.string().optional(),
 });
